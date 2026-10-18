@@ -80,7 +80,7 @@ flowchart LR
 | Web | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4 |
 | Motion | GSAP 3 + ScrollTrigger (landing page, lazy-loaded), Motion for React (component transitions) |
 | Data | PostgreSQL via Drizzle ORM. Locally and in tests, embedded Postgres (PGlite) |
-| Storage | `ObjectStore` with local-disk and S3-compatible drivers, immutable revision paths, key allow-list |
+| Storage | `ObjectStore` with local-disk, Supabase Storage and S3-compatible drivers, immutable revision paths, key allow-list |
 | Auth | Workspace sessions: random 256-bit token in an httpOnly SameSite=Lax cookie, only its hash stored. Ownership is checked on every read and mutation |
 | Speech | `SpeechProvider` interface. AssemblyAI adapter (server-only), plus a test-only tone provider for automated tests |
 | Tests | Vitest (unit + integration on real Postgres semantics), Playwright (production build, desktop + mobile) |
@@ -159,7 +159,7 @@ DATABASE_URL=postgres://… npm run db:migrate
 
 ```bash
 npm run typecheck && npm run lint
-npm test                       # Vitest: 51 unit + integration tests
+npm test                       # Vitest: 54 unit + integration tests
 npx next build && npm run test:e2e   # Playwright: 16 tests against a production build
 ```
 
@@ -192,7 +192,7 @@ Target: Vercel (web + API, `maxDuration` 60 s for synthesis), Supabase Postgres,
 
 Only measured numbers are listed. Details are in [`RESULTS.md`](RESULTS.md).
 
-- 51/51 Vitest and 16/16 Playwright tests pass locally, on 18 Oct 2026.
+- 54/54 Vitest and 16/16 Playwright tests pass locally, on 18 Oct 2026.
 - Lighthouse mobile on a local production build: landing page 90–94 performance, 100 accessibility, 100 best practices, 100 SEO; `/demo` 93–95 performance and 100 on the rest.
 - No horizontal overflow on any page at 320, 375, 390, 430, 768, 1024, 1280, 1440 or 1920px.
 - **AssemblyAI synthesis: not yet measured.** No authenticated request has been made.
