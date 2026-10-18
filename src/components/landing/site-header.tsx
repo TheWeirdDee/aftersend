@@ -59,7 +59,7 @@ export function SiteHeader() {
           <ul className="flex items-center gap-1">
             {NAV.map((n) => (
               <li key={n.href}>
-                <Link href={n.href} className="rounded-full px-3.5 py-2 text-[15px] text-muted transition-colors hover:text-fg">
+                <Link href={n.href} className="inline-flex min-h-11 items-center rounded-full px-3.5 text-[15px] text-muted transition-colors hover:text-fg">
                   {n.label}
                 </Link>
               </li>
