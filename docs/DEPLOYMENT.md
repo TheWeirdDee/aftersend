@@ -4,14 +4,14 @@ Nothing below has been run. Each step needs the owner's accounts and approval.
 
 ## 1. Database: Supabase Postgres
 
-1. Create a project and copy the pooled connection string (Transaction mode, port 6543).
-2. `DATABASE_URL=… npm run db:migrate`
+1. Use the pooled connection string (Transaction mode, port 6543) as `DATABASE_URL`.
+2. Migrations run automatically in the Vercel build (`vercel-build` → `db:migrate --if-configured`), because the Vercel builder can reach Postgres directly.
 
-## 2. Storage: Supabase Storage (S3 protocol)
+## 2. Storage: Supabase Storage
 
 1. Create a **private** bucket, e.g. `aftersend-audio`. The app proxies all audio, so the bucket never needs to be public.
-2. Create S3 access keys (Project Settings → Storage → S3 Connection).
-3. Set `STORAGE_DRIVER=s3`, `OBJECT_STORAGE_BUCKET`, `OBJECT_STORAGE_ENDPOINT` (`https://<ref>.supabase.co/storage/v1/s3`), `OBJECT_STORAGE_REGION`, `OBJECT_STORAGE_ACCESS_KEY` and `OBJECT_STORAGE_SECRET_KEY`.
+2. Set `STORAGE_DRIVER=supabase`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (server-only) and `OBJECT_STORAGE_BUCKET`.
+   (Alternatively `STORAGE_DRIVER=s3` with Supabase's S3 endpoint and access keys.)
 
 ## 3. Web: Vercel
 
