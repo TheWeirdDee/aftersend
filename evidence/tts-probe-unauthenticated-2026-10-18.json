@@ -1,0 +1,30 @@
+{
+  "endpoint": "wss://streaming-tts.assemblyai.com/v1/ws",
+  "authScheme": "none",
+  "log": [
+    {
+      "t_ms": 358,
+      "event": "upgrade",
+      "status": 101
+    },
+    {
+      "t_ms": 359,
+      "event": "open"
+    },
+    {
+      "t_ms": 361,
+      "event": "text",
+      "message": {
+        "type": "Error",
+        "error_code": 1008,
+        "error": "Unauthorized: missing Authorization header or token query param"
+      }
+    },
+    {
+      "t_ms": 364,
+      "event": "close",
+      "code": 1008,
+      "reason": "See Error message for details"
+    }
+  ]
+}
