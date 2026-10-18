@@ -1,0 +1,55 @@
+{
+  "name": "aftersend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A spoken notice you can correct after the link is shared.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "tts:probe": "tsx scripts/tts-probe.ts",
+    "tts:smoke": "tsx scripts/tts-smoke.ts",
+    "cleanup:staging": "tsx scripts/cleanup-staging.ts"
+  },
+  "engines": {
+    "node": ">=20.9"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1152.0",
+    "@electric-sql/pglite": "^0.5.10",
+    "diff": "^9.0.0",
+    "drizzle-orm": "^0.45.4",
+    "geist": "^1.8.1",
+    "gsap": "^3.15.0",
+    "motion": "^14.3.0",
+    "next": "^16.4.2",
+    "postgres": "^3.4.9",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "server-only": "^0.0.1",
+    "ws": "^8.22.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/ws": "^8.18.2",
+    "drizzle-kit": "^0.31.11",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.4.2",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.5"
+  },
+  "type": "module"
+}
