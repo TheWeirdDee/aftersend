@@ -18,7 +18,7 @@ Successful sponsor syntheses so far: **0 of 0 attempted.**
 
 | Suite | Result | Command |
 |---|---|---|
-| Unit + integration (Vitest, embedded Postgres) | 51 passed, 0 failed | `npm test` |
+| Unit + integration (Vitest, embedded Postgres) | 54 passed, 0 failed | `npm test` |
 | End-to-end (Playwright, production build, test-tone provider) | 16 passed, 0 failed | `npm run test:e2e` |
 | Typecheck / lint | clean | `npm run typecheck && npm run lint` |
 | Production build | succeeds | `npx next build` |
