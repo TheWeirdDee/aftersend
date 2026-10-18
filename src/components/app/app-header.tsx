@@ -16,7 +16,11 @@ export function AppHeader({ workspaceLabel, isDemo }: { workspaceLabel?: string;
               {workspaceLabel}
             </span>
           ) : null}
-          {isDemo ? <span className="pill border-warn/40 text-warn">Demo workspace</span> : null}
+          {isDemo ? (
+            <span className="pill border-warn/40 text-warn">
+              Demo<span className="hidden sm:inline">&nbsp;workspace</span>
+            </span>
+          ) : null}
         </div>
         {workspaceLabel ? <SignOutButton /> : null}
       </div>
