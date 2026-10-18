@@ -238,7 +238,7 @@ export function ProductStage() {
               role="radio"
               aria-checked={v === n}
               onClick={() => choose(n)}
-              className={`relative min-h-10 rounded-full px-4 text-[13.5px] font-medium transition-colors ${
+              className={`relative min-h-10 rounded-full px-3 text-[12.5px] font-medium whitespace-nowrap transition-colors sm:px-4 sm:text-[13.5px] ${
                 v === n ? "text-ink" : "text-muted hover:text-fg"
               }`}
             >
@@ -269,11 +269,11 @@ export function ProductStage() {
             </span>
             <span>Sat 18 Oct · 4:10 PM</span>
           </div>
-          <div className="relative grid gap-3 rounded-[14px] bg-[radial-gradient(120%_120%_at_50%_0%,#1a211c_0%,#0d100e_70%)] p-3 sm:p-6 lg:block lg:min-h-[470px] lg:p-8">
-            <div data-window="editor" className="lg:w-[63%]">
+          <div className="relative grid grid-cols-1 gap-3 rounded-[14px] bg-[radial-gradient(120%_120%_at_50%_0%,#1a211c_0%,#0d100e_70%)] p-3 sm:p-6 lg:block lg:min-h-[470px] lg:p-8">
+            <div data-window="editor" className="min-w-0 lg:w-[63%]">
               <Editor v={v} />
             </div>
-            <div data-window="listener" className="lg:absolute lg:top-[96px] lg:right-8 lg:w-[37%]">
+            <div data-window="listener" className="min-w-0 lg:absolute lg:top-[96px] lg:right-8 lg:w-[37%]">
               <Listener v={v} pulse={pulse} />
             </div>
           </div>
