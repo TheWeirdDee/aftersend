@@ -67,3 +67,9 @@ test("withdrawal shows an explicit withdrawn page with no audio", async ({ page,
   await expect(listener.getByText("This notice has been withdrawn by its publisher.")).toBeVisible();
   await expect(listener.locator("audio")).toHaveCount(0);
 });
+
+test("non-landing pages never wait on landing motion", async ({ page }) => {
+  await page.goto("/demo");
+  const opacity = await page.locator("header[data-hero]").evaluate((el) => getComputedStyle(el).opacity);
+  expect(opacity).toBe("1");
+});
