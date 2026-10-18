@@ -14,8 +14,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate.ts",
     "tts:probe": "tsx scripts/tts-probe.ts",
-    "tts:smoke": "tsx scripts/tts-smoke.ts",
-    "cleanup:staging": "tsx scripts/cleanup-staging.ts"
+    "tts:smoke": "tsx --conditions=react-server scripts/tts-smoke.ts"
   },
   "engines": {
     "node": ">=20.9"
