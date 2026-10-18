@@ -345,3 +345,24 @@ describe("withdrawal", () => {
     expect(await getPublicManifest("../../etc/passwd")).toBeNull();
   });
 });
+
+describe("staging cleanup", () => {
+  it("expires old previews but never touches published audio", async () => {
+    const { cleanupStagingAudio } = await import("@/lib/notices/cleanup");
+    const owner = await makeUser();
+    const first = await publishNew(owner);
+    const { revisionId } = await svc.createRevision(owner, first.noticeId, { text: CORRECTED });
+    await svc.generatePreview(owner, revisionId);
+    const later = new Date(Date.now() + 25 * 3600_000);
+    const { deleted } = await cleanupStagingAudio(later);
+    expect(deleted).toBeGreaterThanOrEqual(2); // rev 1's staging copy and rev 2's preview
+    const draft = await svc.getRevisionForOwner(owner, revisionId);
+    expect(draft.revision.status).toBe("draft");
+    await expectCode(svc.approveRevision(owner, revisionId), "audio_not_ready");
+    const m = await getPublicManifest(first.token);
+    if (m?.state !== "published") throw new Error("expected published");
+    const asset = await getPublicAudio(first.token, m.revisionId, m.audioSha256);
+    const { objectStore } = await import("@/lib/storage/audio");
+    expect(await objectStore().get(asset!.objectKey)).not.toBeNull();
+  });
+});
