@@ -1,10 +1,15 @@
 // Applies Drizzle migrations to the Postgres database named by DATABASE_URL.
+// With --if-configured (used by the Vercel build) it skips quietly when no hosted database is set.
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 
 async function main() {
   const url = process.env.DATABASE_URL;
+  if (!url && process.argv.includes("--if-configured")) {
+    console.log("No DATABASE_URL; skipping migrations.");
+    return;
+  }
   if (!url) throw new Error("DATABASE_URL is required (local development migrates PGlite automatically).");
   const client = postgres(url, { max: 1, prepare: false });
   await migrate(drizzle(client), { migrationsFolder: "drizzle" });
