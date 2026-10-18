@@ -102,12 +102,65 @@ class S3Store implements ObjectStore {
   }
 }
 
+/** Supabase Storage over its REST API with a server-only key. The bucket stays private. */
+export class SupabaseStore implements ObjectStore {
+  constructor(
+    private readonly baseUrl: string,
+    private readonly bucket: string,
+    private readonly key: string,
+    private readonly fetchImpl: typeof fetch = fetch,
+  ) {}
+
+  private headers(extra: Record<string, string> = {}) {
+    const h: Record<string, string> = { apikey: this.key, ...extra };
+    // Legacy service-role keys are JWTs and go in Authorization; new sb_secret_ keys use apikey alone.
+    if (this.key.startsWith("eyJ")) h.Authorization = `Bearer ${this.key}`;
+    return h;
+  }
+
+  private url(key: string) {
+    assertSafeKey(key);
+    return `${this.baseUrl.replace(/\/$/, "")}/storage/v1/object/${encodeURIComponent(this.bucket)}/${key}`;
+  }
+
+  async put(key: string, bytes: Uint8Array, contentType: string) {
+    const res = await this.fetchImpl(this.url(key), {
+      method: "POST",
+      headers: this.headers({ "Content-Type": contentType, "x-upsert": "true", "Cache-Control": "max-age=31536000" }),
+      body: bytes as unknown as BodyInit,
+    });
+    if (!res.ok) throw new Error(`Storage upload failed (${res.status}).`);
+  }
+
+  async get(key: string) {
+    const res = await this.fetchImpl(this.url(key), { headers: this.headers(), cache: "no-store" });
+    if (res.status === 404 || res.status === 400) return null;
+    if (!res.ok) throw new Error(`Storage download failed (${res.status}).`);
+    return new Uint8Array(await res.arrayBuffer());
+  }
+
+  async delete(key: string) {
+    assertSafeKey(key);
+    const res = await this.fetchImpl(`${this.baseUrl.replace(/\/$/, "")}/storage/v1/object/${encodeURIComponent(this.bucket)}`, {
+      method: "DELETE",
+      headers: this.headers({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ prefixes: [key] }),
+    });
+    if (!res.ok && res.status !== 404) throw new Error(`Storage delete failed (${res.status}).`);
+  }
+}
+
 let store: ObjectStore | null = null;
 
 export function objectStore(): ObjectStore {
   if (store) return store;
   const e = env();
-  if (e.STORAGE_DRIVER === "s3") {
+  if (e.STORAGE_DRIVER === "supabase") {
+    if (!e.SUPABASE_URL || !e.SUPABASE_SERVICE_ROLE_KEY || !e.OBJECT_STORAGE_BUCKET) {
+      throw new Error("SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY and OBJECT_STORAGE_BUCKET are required for the supabase storage driver.");
+    }
+    store = new SupabaseStore(e.SUPABASE_URL, e.OBJECT_STORAGE_BUCKET, e.SUPABASE_SERVICE_ROLE_KEY);
+  } else if (e.STORAGE_DRIVER === "s3") {
     if (!e.OBJECT_STORAGE_BUCKET) throw new Error("OBJECT_STORAGE_BUCKET is required for the s3 storage driver.");
     store = new S3Store(e.OBJECT_STORAGE_BUCKET);
   } else {
