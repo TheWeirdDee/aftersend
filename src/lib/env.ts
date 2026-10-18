@@ -6,9 +6,12 @@ const schema = z.object({
   APP_URL: z.string().url().optional(),
   DATABASE_URL: z.string().optional(),
   PGLITE_DIR: z.string().optional(),
-  STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
+  STORAGE_DRIVER: z.enum(["local", "s3", "supabase"]).default("local"),
   LOCAL_STORAGE_DIR: z.string().default(".data/objects"),
   OBJECT_STORAGE_BUCKET: z.string().optional(),
+  SUPABASE_URL: z.string().url().optional(),
+  // Server-only. Used solely for Storage requests from API routes.
+  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   OBJECT_STORAGE_ENDPOINT: z.string().optional(),
   OBJECT_STORAGE_REGION: z.string().default("auto"),
   OBJECT_STORAGE_ACCESS_KEY: z.string().optional(),
