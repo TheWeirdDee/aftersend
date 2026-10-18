@@ -1,0 +1,126 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #0b0d0c;
+  --color-ink-2: #111512;
+  --color-surface: #171c18;
+  --color-surface-2: #1d231f;
+  --color-surface-3: #242b26;
+  --color-line: #29312b;
+  --color-line-strong: #3a443d;
+  --color-fg: #f4f5f1;
+  --color-muted: #a1aaa3;
+  --color-faint: #737d75;
+  --color-signal: #d4f36b;
+  --color-signal-dim: #a9c450;
+  --color-signal-ink: #1a2007;
+  --color-removed: #e58a7e;
+  --color-warn: #e6ae52;
+  --color-danger: #e5675c;
+  --color-focus: #9cb8ff;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  background: var(--color-ink);
+  color: var(--color-fg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  scroll-padding-top: 88px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+body {
+  background: var(--color-ink);
+  min-height: 100dvh;
+  overflow-x: clip;
+}
+
+::selection {
+  background: var(--color-signal);
+  color: var(--color-signal-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* Motion: elements start hidden only once the motion script has confirmed it will animate them. */
+html.motion-ready [data-reveal],
+html.motion-ready [data-hero] {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+@utility btn {
+  @apply inline-flex min-h-11 select-none items-center justify-center gap-2 rounded-full px-5 text-[15px] font-medium tracking-[-0.01em] transition-[background-color,color,border-color,opacity,transform] duration-200 ease-(--ease-out-quint) disabled:cursor-not-allowed disabled:opacity-45;
+}
+
+@utility btn-primary {
+  @apply btn bg-fg text-ink hover:bg-white active:scale-[0.98] disabled:hover:bg-fg;
+}
+
+@utility btn-secondary {
+  @apply btn border border-line-strong bg-transparent text-fg hover:border-muted hover:bg-surface active:scale-[0.98];
+}
+
+@utility btn-ghost {
+  @apply btn px-3 text-muted hover:bg-surface hover:text-fg;
+}
+
+@utility btn-danger {
+  @apply btn border border-danger/50 text-danger hover:bg-danger/10;
+}
+
+@utility btn-sm {
+  @apply min-h-9 px-4 text-sm;
+}
+
+@utility card {
+  @apply rounded-2xl border border-line bg-surface;
+}
+
+@utility field-label {
+  @apply mb-2 block text-sm font-medium text-fg;
+}
+
+@utility field-hint {
+  @apply mt-1.5 text-[13px] leading-5 text-muted;
+}
+
+@utility input {
+  @apply w-full rounded-lg border border-line-strong bg-ink-2 px-3.5 py-2.5 text-[15px] text-fg placeholder:text-faint transition-colors outline-none hover:border-faint focus:border-focus focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus/40;
+}
+
+@utility eyebrow {
+  @apply font-mono text-[12px] font-medium tracking-[0.12em] text-muted uppercase;
+}
+
+@utility pill {
+  @apply inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[12px] leading-5 font-medium whitespace-nowrap;
+}
