@@ -10,7 +10,7 @@
   --color-line-strong: #3a443d;
   --color-fg: #f4f5f1;
   --color-muted: #a1aaa3;
-  --color-faint: #737d75;
+  --color-faint: #8b958d;
   --color-signal: #d4f36b;
   --color-signal-dim: #a9c450;
   --color-signal-ink: #1a2007;
@@ -62,9 +62,18 @@ body {
 }
 
 /* Motion: elements start hidden only once the motion script has confirmed it will animate them. */
-html.motion-ready [data-reveal],
-html.motion-ready [data-hero] {
+html.motion-ready [data-landing] [data-reveal],
+html.motion-ready [data-landing] [data-hero]:not([data-hero="line"]):not([data-hero="copy"]):not([data-hero="bar"]):not(header):not([data-hero="bar"] *) {
   opacity: 0;
+}
+
+/* Headline lines stay opaque (they are the largest paint); they start clipped below their mask instead. */
+html.motion-ready [data-landing] [data-hero="line"] {
+  transform: translateY(105%);
+}
+
+html.motion-ready [data-landing] [data-hero="copy"] {
+  transform: translateY(14px);
 }
 
 @media (prefers-reduced-motion: reduce) {
