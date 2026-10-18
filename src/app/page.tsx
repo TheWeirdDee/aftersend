@@ -62,7 +62,7 @@ const FAQ = [
 
 export default function Home() {
   return (
-    <>
+    <div data-landing>
       <LandingMotion />
       <div data-hero="bar">
         <AnnouncementBar />
@@ -338,6 +338,6 @@ export default function Home() {
         </section>
       </main>
       <SiteFooter />
-    </>
+    </div>
   );
 }
