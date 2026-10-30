@@ -2,10 +2,16 @@ import "server-only";
 import WebSocket from "ws";
 import { pcm16ToWav } from "../audio/wav";
 import { env } from "../env";
-import { PROTOCOL_VERIFIED, parseErrorFrame, protocol } from "./assemblyai-protocol";
+import { parseErrorFrame, protocol } from "./assemblyai-protocol";
 import { SpeechProviderError, type SpeechProvider, type SynthesisInput, type SynthesisResult } from "./provider";
 
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
+
+/** Voices named in AssemblyAI's TTS docs and playground; ASSEMBLYAI_TTS_VOICES overrides them. */
+const DEFAULT_VOICES = [
+  { id: "aai-jane", label: "Jane" },
+  { id: "aai-kyla", label: "Kyla" },
+];
 
 /** Server-only AssemblyAI streaming TTS adapter. The API key never leaves this module. */
 export class AssemblyAiTtsProvider implements SpeechProvider {
@@ -17,61 +23,63 @@ export class AssemblyAiTtsProvider implements SpeechProvider {
 
   isConfigured(): { ok: true } | { ok: false; reason: string } {
     if (!env().ASSEMBLYAI_API_KEY) return { ok: false, reason: "ASSEMBLYAI_API_KEY is not set on the server." };
-    if (!PROTOCOL_VERIFIED || !protocol) {
-      return { ok: false, reason: "The AssemblyAI TTS message protocol has not been verified yet." };
-    }
-    if (this.listVoices().length === 0) return { ok: false, reason: "No verified AssemblyAI voice ids are configured." };
     return { ok: true };
   }
 
   listVoices() {
-    return (env().ASSEMBLYAI_TTS_VOICES ?? "")
+    const configured = (env().ASSEMBLYAI_TTS_VOICES ?? "")
       .split(",")
       .map((v) => v.trim())
       .filter(Boolean)
       .map((id) => ({ id, label: id }));
+    return configured.length > 0 ? configured : DEFAULT_VOICES;
   }
 
   async synthesize(input: SynthesisInput): Promise<SynthesisResult> {
     const configured = this.isConfigured();
-    if (!configured.ok || !protocol) {
-      throw new SpeechProviderError("not_configured", configured.ok ? "Protocol missing." : configured.reason, false);
-    }
+    if (!configured.ok) throw new SpeechProviderError("not_configured", configured.reason, false);
     const spec = protocol;
     const e = env();
     const apiKey = e.ASSEMBLYAI_API_KEY!;
-    const url = spec.connectionUrl(e.ASSEMBLYAI_TTS_ENDPOINT, { voiceId: input.voiceId, modelId: this.modelId });
+    const url = spec.connectionUrl(e.ASSEMBLYAI_TTS_ENDPOINT, { voiceId: input.voiceId });
     const startedAt = new Date();
 
     return new Promise<SynthesisResult>((resolve, reject) => {
       const chunks: Uint8Array[] = [];
       let total = 0;
       let firstAudioAt: Date | null = null;
+      let sessionId: string | null = null;
+      let reportedDurationMs: number | null = null;
+      // The server's Begin frame is authoritative for the format it actually produces.
+      let sampleRate = spec.pcmFormat.sampleRate;
+      let model: string | null = this.modelId;
       let settled = false;
       const ws = new WebSocket(url, { headers: spec.authHeaders(apiKey), handshakeTimeout: 10000 });
 
-      const finish = (err: SpeechProviderError | null, requestId: string | null = null) => {
+      const finish = (err: SpeechProviderError | null) => {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
         input.requestContext.signal?.removeEventListener("abort", onAbort);
         if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) ws.terminate();
         if (err) return reject(err);
-        if (total === 0) return reject(new SpeechProviderError("provider_error", "Provider returned no audio.", true));
+        const incomplete = completenessProblem(total, sampleRate, reportedDurationMs);
+        if (incomplete) return reject(new SpeechProviderError("provider_error", incomplete, true));
         const pcm = new Uint8Array(total);
         let off = 0;
         for (const c of chunks) {
           pcm.set(c, off);
           off += c.byteLength;
         }
-        const audio = pcm16ToWav(pcm, spec.pcmFormat);
-        const bytesPerSecond = spec.pcmFormat.sampleRate * spec.pcmFormat.channels * 2;
+        const format = { ...spec.pcmFormat, sampleRate };
+        const audio = pcm16ToWav(pcm, format);
+        const bytesPerSecond = format.sampleRate * format.channels * 2;
         resolve({
           audio,
           mimeType: "audio/wav",
           durationMs: Math.round((total / bytesPerSecond) * 1000),
-          providerRequestId: requestId,
-          providerModel: this.modelId,
+          providerRequestId: sessionId,
+          providerModel: model,
           startedAt,
           firstAudioAt,
           completedAt: new Date(),
@@ -80,16 +88,10 @@ export class AssemblyAiTtsProvider implements SpeechProvider {
 
       const timer = setTimeout(
         () => finish(new SpeechProviderError("timeout", "Speech synthesis timed out.", true)),
-        e.ASSEMBLYAI_TTS_TIMEOUT_MS,
+        Math.min(e.ASSEMBLYAI_TTS_TIMEOUT_MS, input.requestContext.timeoutMs ?? Infinity),
       );
       const onAbort = () => finish(new SpeechProviderError("cancelled", "Synthesis cancelled.", false));
       input.requestContext.signal?.addEventListener("abort", onAbort, { once: true });
-
-      ws.on("open", () => {
-        for (const frame of spec.requestFrames({ text: input.text, voiceId: input.voiceId, modelId: this.modelId })) {
-          ws.send(frame);
-        }
-      });
 
       ws.on("message", (data: Buffer, isBinary: boolean) => {
         if (!isBinary) {
@@ -97,13 +99,21 @@ export class AssemblyAiTtsProvider implements SpeechProvider {
           if (err) return finish(mapProviderError(err.code, err.message));
         }
         const event = spec.parseFrame(data, isBinary);
-        if (event.kind === "audio") {
+        if (event.kind === "begin") {
+          sessionId = event.sessionId;
+          model = event.model ?? model;
+          sampleRate = event.sampleRate ?? sampleRate;
+          for (const frame of spec.requestFrames({ text: input.text })) ws.send(frame);
+        } else if (event.kind === "audio") {
           firstAudioAt ??= new Date();
           total += event.pcm.byteLength;
           if (total > MAX_AUDIO_BYTES) return finish(new SpeechProviderError("provider_error", "Audio too large.", false));
           chunks.push(event.pcm);
+        } else if (event.kind === "malformed") {
+          finish(new SpeechProviderError("provider_error", event.reason, true));
         } else if (event.kind === "done") {
-          finish(null, event.requestId);
+          reportedDurationMs = event.audioDurationMs;
+          finish(null);
         } else if (event.kind === "error") {
           finish(mapProviderError(event.code, event.message));
         }
@@ -127,6 +137,22 @@ export class AssemblyAiTtsProvider implements SpeechProvider {
       });
     });
   }
+}
+
+/**
+ * Decides whether the audio received is the whole utterance. The server reports the duration it produced
+ * in FlushDone, so a stream that lost frames shows up as bytes that do not add up to that duration.
+ */
+export function completenessProblem(totalBytes: number, sampleRate: number, reportedDurationMs: number | null): string | null {
+  if (totalBytes === 0) return "Provider returned no audio.";
+  if (totalBytes % 2 !== 0) return "Provider audio ended in the middle of a sample.";
+  if (reportedDurationMs !== null) {
+    const actualMs = (totalBytes / (sampleRate * 2)) * 1000;
+    if (Math.abs(actualMs - reportedDurationMs) > Math.max(80, reportedDurationMs * 0.01)) {
+      return `Provider audio is incomplete (received ${Math.round(actualMs)} ms of ${reportedDurationMs} ms).`;
+    }
+  }
+  return null;
 }
 
 export function mapProviderError(code: number | string, message: string): SpeechProviderError {
