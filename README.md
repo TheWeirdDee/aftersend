@@ -6,7 +6,7 @@ AfterSend turns a school notice into a spoken announcement behind one stable lin
 
 ![AfterSend landing page](docs/screenshots/landing.png)
 
-> **Status, 30 Oct 2026.** The product, the revision engine and the tests pass locally. The AssemblyAI adapter speaks the documented Streaming TTS protocol and produced two valid recordings in one live run on 30 Oct 2026; **nobody has listened to them yet, and no key is configured right now** (the key used for that run was exposed and must be rotated), so further live checks are pending. Nothing is deployed. The 30 Oct audit fixes are described in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/BUILD_AUDIT.md`](docs/BUILD_AUDIT.md). See [Known limitations](#known-limitations) and [`docs/ASSEMBLYAI_INTEGRATION.md`](docs/ASSEMBLYAI_INTEGRATION.md).
+> **Status, 30 Oct 2026.** Passwordless email accounts (one-time codes) now let a publisher recover and reach their notices from any device; the product, revision engine and tests pass locally. The AssemblyAI adapter speaks the documented protocol and produced two valid recordings in one live run, and a no-cost live probe confirmed an invalid key is refused as non-retryable. **Nobody has listened to the recordings, no replacement AssemblyAI key is configured, and nothing is deployed**, so live verification of both voices, longer notices and repeated runs is pending. Deployment steps, exact values and the verification script are in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Design and guarantees: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Audit status: [`docs/BUILD_AUDIT.md`](docs/BUILD_AUDIT.md). See [Known limitations](#known-limitations).
 
 | | |
 |---|---|
@@ -82,7 +82,7 @@ flowchart LR
 | Motion | GSAP 3 + ScrollTrigger (landing page, lazy-loaded), Motion for React (component transitions) |
 | Data | PostgreSQL via Drizzle ORM. Locally and in tests, embedded Postgres (PGlite) |
 | Storage | `ObjectStore` with local-disk, Supabase Storage and S3-compatible drivers, immutable revision paths, key allow-list |
-| Auth | Workspace sessions: random 256-bit token in an httpOnly SameSite=Lax cookie, only its hash stored. Ownership is checked on every read and mutation |
+| Auth | Passwordless email sign-in with 6-digit one-time codes (HMAC-stored, single use, 10 minutes, 5 guesses) plus anonymous browser workspaces that can be connected to an email later. Sessions: random 256-bit token in an httpOnly SameSite=Lax cookie, only its hash stored, 30 days, sign-out everywhere. Ownership is checked on every read and mutation |
 | Speech | `SpeechProvider` interface. AssemblyAI adapter (server-only), plus a test-only tone provider for automated tests |
 | Tests | Vitest (unit + integration on real Postgres semantics), Playwright (production build, desktop + mobile) |
 
@@ -115,7 +115,9 @@ docs/                                PRD, integration notes, demo script, submis
 
 | Method | Path | Notes |
 |---|---|---|
-| POST | `/api/workspace` | Create a workspace or an isolated demo workspace (rate-limited per IP) |
+| POST/DELETE | `/api/workspace` | Create a workspace without email or an isolated demo workspace (rate-limited per IP) / sign out of this browser |
+| POST | `/api/auth/request`, `/api/auth/verify` | Email a one-time code (always `202`, identical for known and unknown addresses) / verify it, sign in, and link or merge a browser workspace |
+| POST | `/api/auth/signout-all` | End every session of the account on every device |
 | GET/POST | `/api/notices` | List / create draft (owner) |
 | GET | `/api/notices/:id` | Owner detail with revisions, audio, attempts |
 | POST | `/api/notices/:id/revisions` | Start a correction; returns diff and fact changes |
@@ -160,8 +162,8 @@ DATABASE_URL=postgres://… npm run db:migrate
 
 ```bash
 npm run typecheck && npm run lint
-npm test                       # Vitest: 144 unit + integration tests
-npx next build && npm run test:e2e   # Playwright: 38 tests (desktop + mobile) against a production build
+npm test                       # Vitest: 187 unit + integration tests
+npx next build && npm run test:e2e   # Playwright: 49 tests (desktop + mobile) against a production build
 npm run audio:inspect -- file.wav    # structure, level, clipping and silence of a WAV (not pronunciation)
 ```
 
@@ -199,7 +201,7 @@ Target: Vercel (web + API, `maxDuration` 60 s for synthesis), Supabase Postgres,
 
 Only measured numbers are listed. Details are in [`RESULTS.md`](RESULTS.md).
 
-- 30 Oct 2026: 144/144 Vitest and 38/38 Playwright tests pass locally on the final code (run history, including the failures along the way, is in `RESULTS.md`). Lint, typecheck and the production build are clean.
+- 30 Oct 2026: 187/187 Vitest and 49/49 Playwright tests pass locally on the final code (run history, including the failures along the way, is in `RESULTS.md`). Lint, typecheck and the production build are clean.
 - 18 Oct 2026 (historical): 54/54 Vitest and 16/16 Playwright.
 - Lighthouse mobile on a local production build: landing page 90–94 performance, 100 accessibility, 100 best practices, 100 SEO; `/demo` 93–95 performance and 100 on the rest.
 - No horizontal overflow on any page at 320, 375, 390, 430, 768, 1024, 1280, 1440 or 1920px.
@@ -208,7 +210,7 @@ Only measured numbers are listed. Details are in [`RESULTS.md`](RESULTS.md).
 ## Known limitations
 
 - **Speech quality is unreviewed.** The integration works against the real service, but no person has listened to the output, `aai-kyla`, the EU endpoint and the provider's limits are untested, and the key used for the live run was exposed and must be rotated.
-- **Workspace recovery does not exist.** Workspaces are tied to one browser (cookie session), so losing the cookie means losing the ability to correct or withdraw that workspace's notices, which stay public. This needs a product decision (`docs/ARCHITECTURE.md`, section 9).
+- **Recovery depends on the mailbox.** A workspace connected to an email survives cleared cookies, a new browser and a lapsed session. A workspace started *without* email is still only a cookie until it is connected (the header offers **Save to email**). Losing the mailbox as well needs an operator. There is no second factor. Details and residual risks: `docs/ARCHITECTURE.md` section 8A.
 - Withdrawal stops every application route immediately, but cannot recall audio a listener already downloaded or buffered.
 - Synthesis runs inside the API request under a 50 s deadline. A very long notice can fail with "ran out of time" rather than hang; a background worker would remove that limit.
 - Place names are not detected as critical facts; the editor asks the publisher to check them.
