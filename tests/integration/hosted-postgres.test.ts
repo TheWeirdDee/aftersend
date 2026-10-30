@@ -12,9 +12,7 @@ configureTestEnv();
 
 import { PGlite } from "@electric-sql/pglite";
 import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
-import { drizzle } from "drizzle-orm/postgres-js";
-import { migrate } from "drizzle-orm/postgres-js/migrator";
-import postgres from "postgres";
+import { applyMigrations } from "@/lib/db/migrator";
 
 async function freePort() {
   return new Promise<number>((resolve, reject) => {
@@ -39,10 +37,8 @@ beforeAll(async () => {
   await server.start();
   const url = `postgres://postgres:postgres@127.0.0.1:${port}/postgres`;
 
-  // Same call as scripts/migrate.ts.
-  const migrator = postgres(url, { max: 1, prepare: false });
-  await migrate(drizzle(migrator), { migrationsFolder: "drizzle" });
-  await migrator.end();
+  // Same function as scripts/migrate.ts, run twice at once the way two simultaneous builds would.
+  await Promise.all([applyMigrations(url), applyMigrations(url)]);
 
   process.env.DATABASE_URL = url;
   process.env.DATABASE_POOL_MAX = "1";
@@ -66,6 +62,18 @@ describe("service over the Postgres wire protocol", () => {
     for (const expected of ["users", "sessions", "notices", "notice_revisions", "audio_assets", "synthesis_attempts", "rate_limits", "auth_challenges"]) {
       expect(names).toContain(expected);
     }
+  });
+
+  it("applied each migration exactly once even though two migrators started together, and re-running changes nothing", async () => {
+    const { getDb } = await import("@/lib/db/client");
+    const { sql } = await import("drizzle-orm");
+    const db = await getDb();
+    const count = async () =>
+      Number((Array.from((await db.execute(sql`select count(*)::int as n from drizzle.__drizzle_migrations`)) as unknown as { n: number }[])[0] as { n: number }).n);
+    const journal = (JSON.parse((await import("node:fs")).readFileSync("drizzle/meta/_journal.json", "utf8")) as { entries: unknown[] }).entries.length;
+    expect(await count()).toBe(journal);
+    await applyMigrations(process.env.DATABASE_URL!);
+    expect(await count()).toBe(journal);
   });
 
   it("publishes, corrects and withdraws a notice, with the pointer swap under a row lock", async () => {
