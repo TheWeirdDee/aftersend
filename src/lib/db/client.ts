@@ -4,6 +4,7 @@ import fs from "node:fs";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import * as schema from "./schema";
 import { env } from "../env";
+import { appClient } from "./connection";
 
 export type Db = PgDatabase<PgQueryResultHKT, typeof schema>;
 export type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
@@ -15,11 +16,10 @@ const holder: Holder = (g.__aftersendDb ??= { db: null, close: null });
 const migrationsFolder = path.join(process.cwd(), "drizzle");
 
 async function connect(): Promise<Db> {
-  const { DATABASE_URL, PGLITE_DIR, DATABASE_POOL_MAX } = env();
+  const { DATABASE_URL, PGLITE_DIR, DATABASE_POOL_MAX, DATABASE_SSL } = env();
   if (DATABASE_URL && /^postgres(ql)?:\/\//.test(DATABASE_URL)) {
-    const { default: postgres } = await import("postgres");
     const { drizzle } = await import("drizzle-orm/postgres-js");
-    const client = postgres(DATABASE_URL, { max: DATABASE_POOL_MAX, prepare: false });
+    const client = appClient(DATABASE_URL, DATABASE_POOL_MAX, DATABASE_SSL);
     holder.close = async () => client.end();
     return drizzle(client, { schema }) as unknown as Db;
   }
