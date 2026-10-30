@@ -17,3 +17,4 @@ playwright-report/
 evidence/raw/
 
 .DS_Store
+.vercel
