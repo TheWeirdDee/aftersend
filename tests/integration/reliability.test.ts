@@ -282,6 +282,33 @@ describe("synthesis retries, deadlines and claims", () => {
     expect((await revision(revisionId)).status).toBe("preview_ready");
   });
 
+  it("waits exactly as long as the provider's rate-limit hint says, when that fits in the time left", async () => {
+    const owner = await makeUser();
+    const limited = scripted(async (call) => (call === 1 ? new SpeechProviderError("rate_limited", "AssemblyAI rate limit reached.", true, 3009, 1) : "ok"));
+    setSpeechProvider(limited.provider);
+    const { revisionId } = await svc.createNotice(owner, { title: "T", text: ORIGINAL, sourceUrl: null, voiceId: "test-tone" });
+    const started = Date.now();
+    await svc.generatePreview(owner, revisionId);
+    expect(limited.calls()).toBe(2);
+    expect(Date.now() - started).toBeGreaterThanOrEqual(1200); // 1 s hint + 250 ms margin, not the old fixed 2 s or 4 s
+    expect((await revision(revisionId)).status).toBe("preview_ready");
+  });
+
+  it("fails at once, telling the user how long to wait, when the provider's hint cannot fit in the budget", async () => {
+    process.env.SYNTHESIS_DEADLINE_MS = "5000";
+    resetEnvCache();
+    const owner = await makeUser();
+    const limited = scripted(async () => new SpeechProviderError("rate_limited", "AssemblyAI rate limit reached.", true, 3009, 40));
+    setSpeechProvider(limited.provider);
+    const { revisionId } = await svc.createNotice(owner, { title: "T", text: ORIGINAL, sourceUrl: null, voiceId: "test-tone" });
+    const started = Date.now();
+    const err = await svc.generatePreview(owner, revisionId).catch((e: unknown) => e);
+    expect(err).toMatchObject({ code: "rate_limited", retryable: true, details: { retryAfterSec: 40 }, message: expect.stringContaining("40 seconds") });
+    expect(limited.calls()).toBe(1); // no retries that cannot work, and none that would burn more of the session allowance
+    expect(Date.now() - started).toBeLessThan(2000);
+    expect((await revision(revisionId)).status).toBe("failed");
+  });
+
   it("does not retry a failure that cannot succeed on retry", async () => {
     const owner = await makeUser();
     const rejected = scripted(async () => new SpeechProviderError("invalid_request", "Cannot speak this.", false));
