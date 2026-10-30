@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { generateListenApprove, publicUrl, startDemo } from "./helpers";
+import { generateListenApprove, publicUrl, startDemo, versionOf } from "./helpers";
 
 test("Journey A + B: publish, then correct 3:00 PM → 4:00 PM at the unchanged link", async ({ page, context }) => {
   await startDemo(page);
@@ -115,9 +115,10 @@ test("Journey F: competing approvals cannot silently overwrite each other", asyn
   };
   const a = await mk("4:00 PM");
   const b = await mk("5:00 PM");
+  const [va, vb] = [await versionOf(page, a), await versionOf(page, b)];
   const [ra, rb] = await Promise.all([
-    page.request.post(`/api/revisions/${a}/approve`, { headers, data: { confirmedCriticalFacts: true } }),
-    page.request.post(`/api/revisions/${b}/approve`, { headers, data: { confirmedCriticalFacts: true } }),
+    page.request.post(`/api/revisions/${a}/approve`, { headers, data: { confirmedCriticalFacts: true, expectedVersion: va } }),
+    page.request.post(`/api/revisions/${b}/approve`, { headers, data: { confirmedCriticalFacts: true, expectedVersion: vb } }),
   ]);
   const statuses = [ra.status(), rb.status()].sort();
   expect(statuses).toEqual([200, 409]);
@@ -132,8 +133,13 @@ test("approval is refused without confirmed facts or ready audio", async ({ page
   const headers = { Origin: origin, "Content-Type": "application/json" };
   const detail = await (await page.request.get(`/api/notices/${noticeId}`)).json();
   const rev = detail.revisions[0].id;
-  expect((await page.request.post(`/api/revisions/${rev}/approve`, { headers, data: { confirmedCriticalFacts: true } })).status()).toBe(409);
+  const v0 = await versionOf(page, rev);
+  expect((await page.request.post(`/api/revisions/${rev}/approve`, { headers, data: { confirmedCriticalFacts: true, expectedVersion: v0 } })).status()).toBe(409);
   await page.request.post(`/api/revisions/${rev}/generate`, { headers });
-  expect((await page.request.post(`/api/revisions/${rev}/approve`, { headers, data: {} })).status()).toBe(422);
-  expect((await page.request.post(`/api/revisions/${rev}/approve`, { headers, data: { confirmedCriticalFacts: true } })).status()).toBe(200);
+  expect((await page.request.post(`/api/revisions/${rev}/approve`, { headers, data: { expectedVersion: v0 } })).status()).toBe(422);
+  expect((await page.request.post(`/api/revisions/${rev}/approve`, { headers, data: { confirmedCriticalFacts: true } })).status()).toBe(422); // must name the version
+  const stale = await page.request.post(`/api/revisions/${rev}/approve`, { headers, data: { confirmedCriticalFacts: true, expectedVersion: v0 + 7 } });
+  expect(stale.status()).toBe(409);
+  expect((await stale.json()).details.reason).toBe("stale_version");
+  expect((await page.request.post(`/api/revisions/${rev}/approve`, { headers, data: { confirmedCriticalFacts: true, expectedVersion: v0 } })).status()).toBe(200);
 });
