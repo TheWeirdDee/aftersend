@@ -2,6 +2,67 @@
 
 This file holds measurements only. Targets and plans live in `docs/`. Every number below names how it was taken.
 
+## Fifth pass, 30 October 2026: first live provider checks
+
+Observed on one Windows 11 machine, Node 24, with the real AssemblyAI and Resend keys from the owner's `.env.local` (never printed). **Not done: anything that needs the Supabase database password or service key, a deployment, or a human listening.**
+
+### Live AssemblyAI (real service)
+
+| Check | Result |
+|---|---|
+| Both voices, 3 runs each, original and corrected notice | **12 of 12 succeeded.** Median 1.0 s to first audio, 2.7 s total, for 15 to 19 s of audio |
+| Long notice, 2 074 characters (two `Generate` frames) | **2 of 2 succeeded**, about 133 s of audio in about 13 s |
+| Provider-reported duration vs audio actually received | **Equal on all 23 successful syntheses (0 ms difference).** The assumption behind the completeness check holds |
+| Timeout probe (150 ms budget) | Refused as retryable `timeout` in 157 ms |
+| Rate limit | **5 new sessions per minute on this plan, account-wide.** The 6th is refused with code 3009, `retry_after_seconds` given. Reproduced twice (`evidence/tts-session-limit-probe-2026-10-30.jsonl`) |
+| 25 WAV files inspected | All valid 24 kHz mono 16-bit; 0 clipped samples; peaks -10.1 to -2.9 dBFS; no pause over 700 ms (`evidence/audio-inspection-live-2026-10-30.jsonl`) |
+| Pronunciation, naturalness, "3:00 PM" / "4:00 PM" spoken clearly | **Not reviewed. No one has listened.** |
+| EU endpoint | Not tried |
+| Whether the key in `.env.local` replaced the exposed one | **Cannot be told from the key itself** (a rotated key has the same format and length). Confirm in the AssemblyAI dashboard that the old key is deleted |
+
+### Defects found by the live checks, and fixed
+
+| Defect | Evidence | Fix | Test |
+|---|---|---|---|
+| The adapter sent the whole script in one `Generate` frame; the service accepts at most 2 000 characters per frame | The limits page; the product allows 6 000-character notices | Split into frames of at most 1 800 characters at sentence ends, rejoined exactly | `provider-and-security.test.ts`, `assemblyai-adapter.test.ts`; the 2 074-character live run succeeded |
+| Retry backoff (2 s, then 4 s) could never outlast the provider's one-minute rate-limit window; every retry also spends one of the 5 sessions | First unpaced live run: 5 successes, then 7 consecutive `rate_limited` | The provider's `retry_after_seconds` is read and honoured when it fits the request budget; otherwise the request stops at once and tells the user how long to wait (HTTP 429 with `Retry-After`) | `reliability.test.ts` (waits the hinted time; fails fast when it cannot fit), parser test on the exact frame the service sent |
+| Provider error wording was discarded, so a failure could not be diagnosed from logs | Reading the rate-limit rejections | Kept truncated in `providerDetail` for logs only, never shown to users | `provider-and-security.test.ts` |
+
+**Consequence for the product:** on the free AssemblyAI plan, more than five audio generations (including regenerations) in one minute, across all users, will be told to wait. A paid plan raises the allowance.
+
+### Live Resend (real service, verified domain `micromindapp.xyz`)
+
+| Check | Result |
+|---|---|
+| `npm run email:probe` to Resend's own test address `delivered@resend.dev`, through AfterSend's own sender | **Accepted by Resend in 952 ms**, message id returned. Sender configured as `AfterSend <login@micromindapp.xyz>` |
+| Same probe from an unverified domain | **Refused (403)**, classified non-retryable, response body not echoed |
+| Local production build with the real Resend driver, sign-in endpoint over HTTP | Request: 202; a second request inside the 30 s cooldown: 202 and **no second send**; the log holds one send with a Resend message id and no address or code; six wrong codes all answered `invalid_code`; a request without the same-origin header: 403 |
+| Secrets in the server log | None of `RESEND_API_KEY`, `AUTH_SECRET`, `CRON_SECRET`, `ASSEMBLYAI_API_KEY` appear |
+| Reading the message back from Resend | 401: a sending-only key cannot read messages, so the delivery event is not visible to the tooling |
+| **Not verified** | That a code email lands in a real inbox, how the sender renders there, and a full sign-in and recovery with real mail. Run `npm run email:probe -- --to <your mailbox>`, then `npm run verify:live` |
+
+Expiry, replay, lockout, rate limiting and recovery were tested earlier against the file mailbox; they are independent of the transport and are not repeated against real mail.
+
+### Shared-account protection added
+
+The Resend free quota (100 emails a day, per account) is shared with Micromind and any other application. A global cap, `AUTH_EMAILS_PER_DAY` (default 60 per UTC day, counted only when an email is about to be sent), now sits on top of the per-address and per-IP limits. Test: the cap refuses new codes once reached, requests inside the cooldown do not count, and someone already holding a code can still sign in.
+
+### Other changes
+
+The production checker now reports a connection string that still contains `[YOUR-PASSWORD]`. The browser-test server is pinned so that a populated `.env.local` (real keys, Supabase) can never reach it.
+
+### Tests (final code)
+
+| Suite | Result |
+|---|---|
+| Unit + integration (Vitest) | **226 passed, 0 failed** (18 files) |
+| Browser (Playwright, production build) | **49 passed, 0 failed**, one full run |
+| Typecheck, lint, production build | clean |
+
+### Still not done (inputs needed)
+
+Supabase: the database password and the service key are not in `.env.local`, so nothing was run against the real database or storage (migrations, the private bucket, the direct-access test of superseded audio, `verify:deploy --storage`). Vercel: not deployed. Live journey: needs a mailbox the tester can read. Human listening review: not done.
+
 ## Fourth pass, 30 October 2026: release preparation
 
 Observed on one Windows 11 machine, Node 24. **No real Supabase, Resend, Vercel or AssemblyAI account was used, and no replacement AssemblyAI key exists, so nothing in this pass is live evidence.** What it did: audit the deployment design against the implementation and the providers' own documentation, fix what was wrong, and build and rehearse the tools that will produce live evidence.
