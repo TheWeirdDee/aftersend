@@ -16,6 +16,7 @@ import { inspectAudio } from "../audio/wav";
 import { env } from "../env";
 import { AppError } from "../http/errors";
 import { newId, newPublicToken, sha256Hex } from "../ids";
+import { log } from "../log";
 import { speechProvider } from "../speech";
 import { SpeechProviderError, type SpeechProvider } from "../speech/provider";
 import { objectStore, publishedKey, stagingKey } from "../storage/audio";
@@ -444,9 +445,18 @@ export async function generatePreview(ownerId: string, revisionId: string) {
       return updated.length > 0;
     });
     if (!committed) throw new AppError("conflict", "The text changed while audio was generating. Generate again.", true);
+    log("info", "synthesis.succeeded", { revisionId, attemptId, retries, providerLatencyMs: latency, bytes: result.audio.byteLength, providerRequestId: result.providerRequestId });
     return { status: "preview_ready" as const, reused: false, latencyMs: latency };
   } catch (err) {
     const providerErr = err instanceof SpeechProviderError ? err : null;
+    log(providerErr?.retryable ? "warn" : "error", "synthesis.failed", {
+      revisionId,
+      attemptId,
+      kind: providerErr?.kind ?? (err instanceof AppError ? err.code : "internal"),
+      providerCode: providerErr?.providerCode,
+      retries,
+      elapsedMs: env().SYNTHESIS_DEADLINE_MS - (deadline - Date.now()),
+    });
     await db
       .update(synthesisAttempts)
       .set({
@@ -580,6 +590,7 @@ export async function approveRevision(ownerId: string, revisionId: string, opts:
       )
       .returning({ id: notices.id });
     if (swapped.length === 0) throw new AppError("conflict", "Another version was published first.");
+    log("info", "notice.published", { noticeId: notice.id, revisionId: revision.id, revisionNumber });
     return { noticeId: notice.id, revisionNumber, alreadyPublished: false, publishedAt };
   });
 }
@@ -595,6 +606,7 @@ export async function withdrawNotice(ownerId: string, noticeId: string) {
     .where(and(eq(notices.id, noticeId), eq(notices.state, "published")))
     .returning({ id: notices.id });
   if (done.length === 0) throw new AppError("conflict", "Only a published notice can be withdrawn.");
+  log("info", "notice.withdrawn", { noticeId });
 }
 
 export type NoticeListItem = Notice & { currentRevisionNumber: number | null; openDrafts: number };
