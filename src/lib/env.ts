@@ -45,6 +45,9 @@ const schema = z.object({
   EMAIL_OUTBOX_DIR: z.string().default(".data/outbox"),
   // Sign-in abuse limits per client IP per hour. Per-address limits are fixed (5 codes, 30 attempts).
   AUTH_REQUESTS_PER_IP_PER_HOUR: z.coerce.number().int().positive().default(20),
+  // Total sign-in emails per UTC day across all addresses. The email account's daily quota is shared by every application
+  // that uses it, so this keeps AfterSend from using it all up. Leave room for the other applications.
+  AUTH_EMAILS_PER_DAY: z.coerce.number().int().positive().default(60),
   AUTH_VERIFY_PER_IP_PER_HOUR: z.coerce.number().int().positive().default(30),
   SYNTHESIS_LIMIT_PER_HOUR: z.coerce.number().int().positive().default(30),
   DEMO_WORKSPACES_PER_IP_PER_HOUR: z.coerce.number().int().positive().default(10),
