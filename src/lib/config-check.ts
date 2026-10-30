@@ -22,6 +22,64 @@ export function cookiesAreSecure(env: Record<string, string | undefined> = proce
   return env.NODE_ENV === "production" && (isHostedProduction(env) || !env.AFTERSEND_INSECURE_COOKIES);
 }
 
+/** Settings that must be a whole number. A trailing `# note` or stray quotes turn them into NaN at startup. */
+export const NUMERIC_SETTINGS = [
+  "DATABASE_POOL_MAX",
+  "ASSEMBLYAI_TTS_TIMEOUT_MS",
+  "SYNTHESIS_DEADLINE_MS",
+  "AUTH_REQUESTS_PER_IP_PER_HOUR",
+  "AUTH_EMAILS_PER_DAY",
+  "AUTH_VERIFY_PER_IP_PER_HOUR",
+  "SYNTHESIS_LIMIT_PER_HOUR",
+  "DEMO_WORKSPACES_PER_IP_PER_HOUR",
+] as const;
+
+/** Settings the application reads. Only these are inspected for stray text, so a host's own variables are never flagged. */
+const APP_SETTINGS = [
+  ...NUMERIC_SETTINGS,
+  "APP_URL",
+  "DATABASE_URL",
+  "MIGRATION_DATABASE_URL",
+  "DATABASE_SSL",
+  "STORAGE_DRIVER",
+  "OBJECT_STORAGE_BUCKET",
+  "SUPABASE_URL",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "SPEECH_PROVIDER",
+  "ASSEMBLYAI_API_KEY",
+  "ASSEMBLYAI_TTS_ENDPOINT",
+  "ASSEMBLYAI_TTS_MODEL",
+  "ASSEMBLYAI_TTS_VOICES",
+  "AUTH_SECRET",
+  "EMAIL_DRIVER",
+  "RESEND_API_KEY",
+  "EMAIL_FROM",
+  "CRON_SECRET",
+] as const;
+
+/**
+ * Catches a value that is not what its author meant. A `.env.example` line such as `NAME=30000   # one attempt` is read
+ * as 30000 by Next.js but as the whole string, comment included, by Vercel's tools and dashboard, which is how a
+ * production deployment once started with NaN settings. Reports names only.
+ */
+export function checkValueShapes(env: Record<string, string | undefined>): string[] {
+  const problems: string[] = [];
+  for (const name of APP_SETTINGS) {
+    const value = env[name];
+    if (value === undefined || value === "") continue;
+    if (/\s#/.test(value)) problems.push(`${name} contains " #": an inline comment in a .env line becomes part of the value on Vercel. Put the comment on its own line.`);
+    else if (/^\s|\s$/.test(value)) problems.push(`${name} has leading or trailing whitespace.`);
+    else if (/^(["']).*\1$/.test(value)) problems.push(`${name} is wrapped in quote characters that are part of the value.`);
+  }
+  for (const name of NUMERIC_SETTINGS) {
+    const value = env[name];
+    if (value !== undefined && value !== "" && !/^\d+$/.test(value) && !/\s#/.test(value) && !/^\s|\s$/.test(value) && !/^(["']).*\1$/.test(value)) {
+      problems.push(`${name} must be a whole number.`);
+    }
+  }
+  return problems;
+}
+
 function present(v: string | undefined) {
   return !!v && v.trim() !== "";
 }
@@ -41,6 +99,8 @@ export function checkProductionConfig(env: Record<string, string | undefined>): 
   const need = (name: string, why: string) => {
     if (!present(env[name])) problems.push(`${name} is not set (${why}).`);
   };
+
+  problems.push(...checkValueShapes(env));
 
   // A connection string copied from a dashboard still has its password placeholder until someone fills it in.
   for (const name of ["DATABASE_URL", "MIGRATION_DATABASE_URL"]) {
