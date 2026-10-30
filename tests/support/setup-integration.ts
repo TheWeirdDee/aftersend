@@ -11,6 +11,10 @@ export function configureTestEnv() {
     STORAGE_DRIVER: "local",
     LOCAL_STORAGE_DIR: dir,
     SPEECH_PROVIDER: "test",
+    EMAIL_DRIVER: "file",
+    AFTERSEND_ALLOW_TEST_EMAIL: "1",
+    EMAIL_OUTBOX_DIR: path.join(dir, "outbox"),
+    AUTH_SECRET: "integration-test-secret-0123456789",
     AFTERSEND_ALLOW_TEST_PROVIDER: "1",
     ASSEMBLYAI_TTS_TIMEOUT_MS: "2000",
   });
