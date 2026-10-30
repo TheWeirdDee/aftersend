@@ -10,8 +10,8 @@ export const PATCH = route<{ revisionId: string }>(
     const user = await requireUser();
     const { revisionId } = await params;
     const input = await readJson(req, updateDraftSchema);
-    await updateDraft(user.id, revisionId, input);
-    return json({ ok: true });
+    const saved = await updateDraft(user.id, revisionId, input);
+    return json({ ok: true, ...saved });
   },
   { mutation: true },
 );
