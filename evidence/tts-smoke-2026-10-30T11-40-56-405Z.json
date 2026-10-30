@@ -1,0 +1,146 @@
+{
+  "startedAt": "2026-10-30T11:39:38.187Z",
+  "endpoint": "wss://tts.us.assemblyai.com/v1/ws",
+  "inputs": [
+    {
+      "label": "original",
+      "text": "Sample School Schedule Notice. Dear parents and guardians, Classes will end early on Friday, 24 October 2026, for a staff training day. Pickup is at three p.m. at the main gate. Please bring your pickup card. Thank you for your support."
+    },
+    {
+      "label": "corrected",
+      "text": "Sample School Schedule Notice. Update: Pickup is at four p.m. at the main gate. Dear parents and guardians, Classes will end early on Friday, 24 October 2026, for a staff training day. Pickup is at four p.m. at the main gate. Please bring your pickup card. Thank you for your support."
+    },
+    {
+      "label": "long",
+      "text": "Sample School Schedule Notice. Dear parents and guardians, classes will end early on Friday, 24 October 2026, for a staff training day. Pickup is at three p.m. at the main gate. Please bring your pickup card and a form of identification. Buses will leave the school at three fifteen p.m. sharp. Thank you for your support. Dear parents and guardians, classes will end early on Friday, 24 October 2026, for a staff training day. Pickup is at three p.m. at the main gate. Please bring your pickup card and a form of identification. Buses will leave the school at three fifteen p.m. sharp. Thank you for your support. Dear parents and guardians, classes will end early on Friday, 24 October 2026, for a staff training day. Pickup is at three p.m. at the main gate. Please bring your pickup card and a form of identification. Buses will leave the school at three fifteen p.m. sharp. Thank you for your support. Dear parents and guardians, classes will end early on Friday, 24 October 2026, for a staff training day. Pickup is at three p.m. at the main gate. Please bring your pickup card and a form of identification. Buses will leave the school at three fifteen p.m. sharp. Thank you for your support. Dear parents and guardians, classes will end early on Friday, 24 October 2026, for a staff training day. Pickup is at three p.m. at the main gate. Please bring your pickup card and a form of identification. Buses will leave the school at three fifteen p.m. sharp. Thank you for your support. Dear parents and guardians, classes will end early on Friday, 24 October 2026, for a staff training day. Pickup is at three p.m. at the main gate. Please bring your pickup card and a form of identification. Buses will leave the school at three fifteen p.m. sharp. Thank you for your support. Dear parents and guardians, classes will end early on Friday, 24 October 2026, for a staff training day. Pickup is at three p.m. at the main gate. Please bring your pickup card and a form of identification. Buses will leave the school at three fifteen p.m. sharp. Thank you for your support."
+    }
+  ],
+  "results": [
+    {
+      "voice": "aai-jane",
+      "run": 1,
+      "label": "original",
+      "ok": true,
+      "file": "evidence/raw/audio/aai-jane-original-run1-fb76cc67.wav",
+      "characters": 236,
+      "bytes": 737324,
+      "decodedDurationMs": 15360,
+      "providerReportedDurationMs": 15360,
+      "durationDeltaMs": 0,
+      "timeToFirstAudioMs": 1037,
+      "waitedForRateLimitSec": 0,
+      "totalMs": 3379,
+      "providerRequestId": "ab9345e8-30d9-473d-b3f7-d1e20f43d822",
+      "model": "assemblyai-tts-1",
+      "sha256": "fb76cc674290dacd1e80efad30681d71a817dd5d3d6175ce125f76183afc6381"
+    },
+    {
+      "voice": "aai-jane",
+      "run": 1,
+      "label": "corrected",
+      "ok": true,
+      "file": "evidence/raw/audio/aai-jane-corrected-run1-ec47b236.wav",
+      "characters": 284,
+      "bytes": 929324,
+      "decodedDurationMs": 19360,
+      "providerReportedDurationMs": 19360,
+      "durationDeltaMs": 0,
+      "timeToFirstAudioMs": 954,
+      "waitedForRateLimitSec": 0,
+      "totalMs": 2686,
+      "providerRequestId": "d58ab503-3084-40e5-b802-d448f04bf040",
+      "model": "assemblyai-tts-1",
+      "sha256": "ec47b236a397607fbb5b014a238dcc5f296c18e2bead72fadfd2c08c2f0f711b"
+    },
+    {
+      "voice": "aai-jane",
+      "run": 1,
+      "label": "long",
+      "ok": true,
+      "file": "evidence/raw/audio/aai-jane-long-run1-ca766f5e.wav",
+      "characters": 2074,
+      "bytes": 6393644,
+      "decodedDurationMs": 133200,
+      "providerReportedDurationMs": 133200,
+      "durationDeltaMs": 0,
+      "timeToFirstAudioMs": 967,
+      "waitedForRateLimitSec": 0,
+      "totalMs": 12903,
+      "providerRequestId": "cd99b853-3aa6-4841-b1eb-411573f98fb5",
+      "model": "assemblyai-tts-1",
+      "sha256": "ca766f5e4fc73601ee2828c6dbc909bcbd8f1d7a7a82be3bbe5776c0a7d82205"
+    },
+    {
+      "voice": "aai-kyla",
+      "run": 1,
+      "label": "original",
+      "ok": true,
+      "file": "evidence/raw/audio/aai-kyla-original-run1-a64f6ad2.wav",
+      "characters": 236,
+      "bytes": 748844,
+      "decodedDurationMs": 15600,
+      "providerReportedDurationMs": 15600,
+      "durationDeltaMs": 0,
+      "timeToFirstAudioMs": 1093,
+      "waitedForRateLimitSec": 0,
+      "totalMs": 2494,
+      "providerRequestId": "23e5c61e-5df8-4960-a8e9-7df8d9985d05",
+      "model": "assemblyai-tts-1",
+      "sha256": "a64f6ad27a0ac5a714810d87bc47987eae4ddc61a756950dac6ec0e840f218b4"
+    },
+    {
+      "voice": "aai-kyla",
+      "run": 1,
+      "label": "corrected",
+      "ok": true,
+      "file": "evidence/raw/audio/aai-kyla-corrected-run1-3bf444b7.wav",
+      "characters": 284,
+      "bytes": 921644,
+      "decodedDurationMs": 19200,
+      "providerReportedDurationMs": 19200,
+      "durationDeltaMs": 0,
+      "timeToFirstAudioMs": 1023,
+      "waitedForRateLimitSec": 0,
+      "totalMs": 2732,
+      "providerRequestId": "a5160f14-ac5c-4d7a-a46a-e66a74453e5f",
+      "model": "assemblyai-tts-1",
+      "sha256": "3bf444b7b2f7206808023c873efef77d31ed9785c74367314d0e7450b7ebdd37"
+    },
+    {
+      "voice": "aai-kyla",
+      "run": 1,
+      "label": "long",
+      "ok": true,
+      "file": "evidence/raw/audio/aai-kyla-long-run1-88a96893.wav",
+      "characters": 2074,
+      "bytes": 6424364,
+      "decodedDurationMs": 133840,
+      "providerReportedDurationMs": 133840,
+      "durationDeltaMs": 0,
+      "timeToFirstAudioMs": 1017,
+      "waitedForRateLimitSec": 0,
+      "totalMs": 12974,
+      "providerRequestId": "b5ca523e-f7d3-473b-a0d6-d3b7e517ddd2",
+      "model": "assemblyai-tts-1",
+      "sha256": "88a96893ba0bf36935bfd2b3cb8bfc8dbd7412e863acd68a657692302429927f"
+    }
+  ],
+  "probes": [
+    {
+      "probe": "timeout",
+      "ok": true,
+      "kind": "timeout",
+      "retryable": true,
+      "elapsedMs": 157
+    }
+  ],
+  "summary": {
+    "requests": 7,
+    "succeeded": 6,
+    "failed": 0,
+    "medianTotalMs": 3379,
+    "medianTimeToFirstAudioMs": 1023,
+    "maxAbsDurationDeltaMs": 0,
+    "humanListeningReview": "NOT DONE. Play every file and complete docs/LISTENING_REVIEW.md."
+  }
+}
