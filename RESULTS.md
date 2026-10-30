@@ -2,6 +2,32 @@
 
 This file holds measurements only. Targets and plans live in `docs/`. Every number below names how it was taken.
 
+## Sixth pass, 30 October 2026: real database, real storage, first production deployment
+
+Observed with the owner's `.env.local` (never printed) and the Vercel CLI logged in as the owner. The code was not changed in this pass; the commit under test is the one at the top of the fifth pass.
+
+| Check | Result |
+|---|---|
+| `npm run check:env -- --file .env.local` | **0 problems**, 1 warning (`APP_URL` blank locally; it is set on Vercel) |
+| Migrations against the real Supabase database (session pooler, port 5432) | **Applied.** Tables present afterwards: `audio_assets`, `auth_challenges`, `notice_revisions`, `notices`, `rate_limits`, `sessions`, `synthesis_attempts`, `users` |
+| The app's own database client against the real transaction pooler (port 6543) | `select 1` succeeded; a local production server with the real env answered `/api/health` and `/api/ready` with 200 (database, speech, storage, email all ok) |
+| Deployment to Vercel production (`aftersend-sigma.vercel.app`), by CLI from the working tree | **Ready.** Nothing was pushed to GitHub |
+| `npm run verify:deploy -- https://aftersend-sigma.vercel.app --storage` | **23 of 23 passed** (`evidence/verify-deploy-2026-10-30.txt`): `/api/health` and `/api/ready` 200, speech is AssemblyAI, email is Resend, production config check ok, security headers, CSRF refusal, anonymous workspace access refused, cron refuses anonymous calls |
+| Storage bucket `aftersend-audio` | Exists, **private**; the server key can write and read; a probe object is **not** readable anonymously through the public, plain or authenticated URL shapes |
+| Email: probe to the owner's Gmail through the app's sender | Delivered to the inbox; the From line reads `AfterSend <login@micromindapp.xyz>` (owner's screenshot) |
+
+### Defects found while deploying (all in deployment procedure, none in the application)
+
+| Defect | Evidence | Fix |
+|---|---|---|
+| Hosted variables were first stored with a mangled value, so the app answered 503 and 500 | `/api/health` 503, `/api/ready` 500; runtime log: `ZodError` for `DATABASE_POOL_MAX`, `ASSEMBLYAI_TTS_TIMEOUT_MS`, `SYNTHESIS_DEADLINE_MS` (NaN) | The three numeric lines in `.env.local` carry a trailing `# comment`; the local loader strips it, my copy to Vercel did not. Re-added with comments stripped; redeploy then passed 23/23 |
+| `vercel env add` through a Windows shell kept literal quotes in values | Same log | Call the CLI without a shell and pass the value with `--value` |
+| `vercel env pull` shows production values as empty | Pulled file | Not a fault: Vercel marks Production variables sensitive by default, so they cannot be read back. Verify through `/api/ready`, which reports the configuration check |
+
+### Not done
+
+The two-mailbox live journey (`npm run verify:live`) needs the owner to type two codes from a real inbox and was not run. Nobody has listened to the audio. The migration lock (`pg_advisory_lock`) has not been exercised by two concurrent builds. Superseded-audio direct access was not tested against a real published notice. The exposed AssemblyAI key's deletion is unconfirmed.
+
 ## Fifth pass, 30 October 2026: first live provider checks
 
 Observed on one Windows 11 machine, Node 24, with the real AssemblyAI and Resend keys from the owner's `.env.local` (never printed). **Not done: anything that needs the Supabase database password or service key, a deployment, or a human listening.**
