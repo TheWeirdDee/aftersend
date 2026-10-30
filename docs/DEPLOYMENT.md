@@ -77,6 +77,31 @@ node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"      # 
    **Never set in production:** `AFTERSEND_ALLOW_TEST_PROVIDER`, `AFTERSEND_ALLOW_TEST_EMAIL`, `AFTERSEND_INSECURE_COOKIES`, `SPEECH_PROVIDER=test`, `EMAIL_DRIVER=file`. The verification script fails if any of them is live.
 3. Click **Deploy**. Before you do, run `npm run check:env -- --file <file>` against the values you entered (see §5); it names anything missing or unsafe without printing a value. The build runs the migrations; a database failure fails the build rather than shipping a broken app.
 
+## 4a. Environment hygiene: how production once started with NaN settings
+
+On 30 Oct 2026 the first production deployments answered 503 and 500. The runtime log showed `ZodError … expected number, received NaN` for `DATABASE_POOL_MAX`, `ASSEMBLYAI_TTS_TIMEOUT_MS` and `SYNTHESIS_DEADLINE_MS`. The cause: `.env.example` (and so a copied `.env.local`) had lines such as `DATABASE_POOL_MAX=3   # connections per server instance`. Next.js and this repository's scripts drop the trailing comment, but Vercel's CLI and dashboard store the whole string, comment included. Three API-key lines carried comments too. Defences now in place:
+
+| Layer | What it does |
+|---|---|
+| `.env.example` | No comment follows a value; every comment is on its own line |
+| `npm run check:env -- --file .env.local` | Fails on any inline `# comment` in the raw file (the parser used for the other checks strips them, so this reads the file as written) |
+| `checkProductionConfig` (also run by `/api/ready` on production and by `verify:deploy`) | Fails on a value containing ` #`, quote characters, leading or trailing spaces, or a non-integer in a numeric setting. Names only; never the value |
+| `npm run env:sync` | The supported way to copy `.env.local` to Vercel Production. Dry run by default; runs the checks on the exact values it would send and refuses on any problem; calls the Vercel CLI with no shell (a shell kept literal quotes in values); never prints a value; does not deploy |
+
+```
+npm run env:sync -- --app-url https://<domain>            # dry run, changes nothing
+npm run env:sync -- --app-url https://<domain> --apply    # sets Production variables; then redeploy
+```
+
+Vercel stores Production variables as *sensitive*, so `vercel env pull` shows them empty. That is normal; judge a deployment by `/api/ready` (`config: ok`), not by a pull.
+
+### Changing the database password
+
+1. Supabase dashboard → **Project Settings → Database → Reset database password**. Use a long random one. Characters such as `@ : / ? # %` are allowed, because the next step percent-encodes them.
+2. In your own terminal (never paste the password into a chat): `npm run db:set-password -- --vercel`. It asks for the password with no echo, encodes it, connects with both `DATABASE_URL` and `MIGRATION_DATABASE_URL`, and rewrites `.env.local` **only if both connect**. `--vercel` also sets both on Vercel Production.
+3. **Redeploy** (Vercel dashboard → Deployments → Redeploy, or `vercel deploy --prod`). The running deployment still holds the old password, so once its open connections drop it cannot reach the database until the redeploy; do the steps back to back.
+4. `npm run verify:deploy -- https://<domain>` must show `/api/health` 200.
+
 ## 5. Verify the deployment
 
 **Before the first deploy (and before every later one that changes variables),** check the configuration itself. In Vercel, **Settings → Environment Variables** has no export; use the CLI (`npm i -g vercel`, then `vercel link`) and `vercel env pull .env.production.local --environment=production`, then:
