@@ -4,6 +4,7 @@ import { and, eq, gt } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 import { getDb } from "../db/client";
 import { sessions, users, type User } from "../db/schema";
+import { cookiesAreSecure } from "../config-check";
 import { newId, sha256Hex } from "../ids";
 import { AppError } from "../http/errors";
 
@@ -33,7 +34,8 @@ export async function startSession(userId: string) {
   jar.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production" && !process.env.AFTERSEND_INSECURE_COOKIES,
+    // The escape hatch exists only for the local production-build test server; hosted production ignores it.
+    secure: cookiesAreSecure(),
     path: "/",
     expires: expiresAt,
   });
