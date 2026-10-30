@@ -2,6 +2,55 @@
 
 This file holds measurements only. Targets and plans live in `docs/`. Every number below names how it was taken.
 
+## Third pass, 30 October 2026: email accounts and release preparation
+
+Observed on one Windows 11 machine, Node 24. Nothing here touched real Supabase, Resend, Vercel or a replacement AssemblyAI key; none exists yet.
+
+### Automated tests (final code)
+
+| Suite | Result | Command |
+|---|---|---|
+| Unit + integration (Vitest) | **187 passed, 0 failed** (16 files), three consecutive full runs green | `npm test` |
+| Browser (Playwright, production build) | **49 passed, 0 failed** (47 desktop + 2 mobile), one full run | `npx next build && npm run test:e2e` |
+| Typecheck, lint, production build | clean | `npm run typecheck`, `npm run lint`, `npx next build` |
+
+Two parts of the stack are exercised for the first time this pass: the `postgres-js` driver over the Postgres wire protocol (PGlite behind a TCP socket: migrations, publish, correction, withdrawal, simultaneous approvals, email sign-in, 4 tests) and restart persistence of the local database and object store (1 test).
+
+### Problems this pass found, and how they were handled (nothing hidden)
+
+| What happened | Cause | Outcome |
+|---|---|---|
+| First email-sign-in browser run: 6 of 11 failed | One **real defect**: the 30 s resend cooldown also blocked requesting a code right after the previous code had been used, so a second device got no email. Three test mistakes: a selector that also matched Next.js's route announcer, an exact-text match on a header label, and the same cooldown hit. | Cooldown now guards only a still-usable code; regression test added (`email-auth.test.ts`); tests corrected. Re-run: 11 of 11. |
+| First full Vitest run after adding integration files: 5 files failed | Seven files each boot an embedded Postgres in parallel; the default 10 s hook timeout was too short. | `hookTimeout: 60000` in `vitest.config.ts`. Three green runs after. |
+| Lockfile churn | A first attempt to add a dev dependency with `--legacy-peer-deps` rewrote the lockfile (739 deletions). | Reverted; installed properly, which required `@electric-sql/pglite` 0.5.10 to 0.5.13. Full suite re-run on 0.5.13. |
+
+### Mutation checks on the new authentication code
+
+Each defect was applied on its own and `email-auth.test.ts` re-run.
+
+| Defect applied | Caught? |
+|---|---|
+| Link or merge without requiring the verifying session to match the requesting one | Yes (2 tests) |
+| Merge in the wrong direction (account notices into the browser workspace) | Yes |
+| Request path that treats known addresses differently (account enumeration) | Yes (5 tests) |
+| Cooldown that also blocks after a code was used | Yes |
+| Store the code in plain text | Yes (20 tests) |
+| No per-code attempt ceiling | Not at first; a test was added that sets the race-leftover state directly. Now caught. |
+| A lockout that does not retire the code | Not at first (the ceiling masked it); an assertion on the stored row was added. Now caught. |
+| Consume the code without the atomic "still unused" condition | **Not caught.** It overlaps the attempt compare-and-swap, so with it removed the suite still passes. It is defence in depth that cannot be exercised without fault injection, and it is not claimed as tested. |
+
+### Live AssemblyAI
+
+| Check | Result |
+|---|---|
+| Invalid key, live (`npm run tts:smoke -- --bad-key-probe`, no credits) | Refused as `auth`, non-retryable, provider code 1008, in 971 ms. File: `evidence/tts-smoke-2026-10-30T09-44-48-264Z.json` |
+| `aai-kyla`, repeated runs, a long notice, the timeout probe, the server-reported-duration assumption | **Not run: no replacement key.** The script supports all of them within a request budget (default 14). |
+| Human listening review | **Not done.** Sheet: `docs/LISTENING_REVIEW.md` (unsigned). |
+
+### Local production-build check of the deployment script
+
+`scripts/verify-deployment.ts` against a local production server with test providers: 13 of 15 checks passed and the 2 that must fail did (it refuses to accept the test speech provider or the test email outbox as a production configuration).
+
 ## Second pass, 30 October 2026
 
 Everything in this section was observed on 30 Oct 2026 on one Windows 11 machine with Node 24. The sections below it are the 18 Oct measurements, kept as they were, and are **historical**.
