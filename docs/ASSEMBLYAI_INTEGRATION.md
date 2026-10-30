@@ -57,6 +57,31 @@ It records, per request: time to first audio, total time, decoded duration, **th
 
 Run on 30 Oct with no credits: the bad-key probe. An invalid key is refused as non-retryable `auth` (provider code 1008) in under a second, which is the live confirmation that the adapter's auth mapping matches what the service really sends. Everything else needs a valid key.
 
+## Live results, 30 October 2026 (third live session)
+
+Real service, `wss://tts.us.assemblyai.com/v1/ws`, model `assemblyai-tts-1`, new key from `.env.local`. Evidence: `evidence/tts-smoke-2026-10-30T11-39-29-250Z.json`, `…T11-40-56-405Z.json`, `…T11-31-52-218Z.json` (the first, unpaced run that hit the rate limit, kept on purpose), `evidence/tts-session-limit-probe-2026-10-30.jsonl`, `evidence/audio-inspection-live-2026-10-30.jsonl`.
+
+| Check | Result |
+|---|---|
+| Both voices, 3 runs each, original and corrected notice | **12 of 12 succeeded** (`aai-jane`, `aai-kyla`). |
+| Time to first audio / total request time | median about 1.0 s / 2.7 s for 15 to 19 s of audio. |
+| Long notice (2 074 characters, so two `Generate` frames) | **2 of 2 succeeded**, about 133 s of audio in about 13 s (about 6 ms of synthesis per character). A 6 000-character notice would therefore take about 40 s: inside the 50 s deadline, but with little room for a retry. |
+| The completeness assumption (provider-reported duration equals the audio streamed) | **Confirmed on all 23 successful syntheses: difference 0 ms every time.** |
+| Repeatability | Output differs run to run (durations vary by up to 0.5 s) but every run succeeded and validated. |
+| Timeout probe (a 150 ms budget) | Refused as a retryable `timeout` after 157 ms. |
+| Invalid key | Refused as non-retryable `auth`, code 1008 (earlier session). |
+| Files | 25 WAVs, all 24 kHz mono 16-bit and structurally valid, 0 clipped samples, peaks -10.1 to -2.9 dBFS, no pause over 700 ms. |
+| **Rate limit** | **Free plan: 5 new sessions per minute for the whole account**, in fixed one-minute windows. The 6th session is refused with close code `3009`, `error_type: "rate_limited"`, `retryable: true` and `retry_after_seconds`; reproduced twice. |
+| Pronunciation and naturalness | **Not reviewed.** No one has listened. |
+
+### Findings that changed the code
+
+1. **The 5-per-minute allowance is account-wide and every synthesis, retry and regeneration uses one session.** The old retry backoff (2 s, then 4 s) could never outlast the window. The app now reads `retry_after_seconds`, waits exactly that (plus 250 ms) when it fits in the request budget, and otherwise stops at once and tells the user "Try again in N seconds" (HTTP 429 with `Retry-After`). It also means that on the free plan more than five people generating audio in the same minute will see this message; a paid AssemblyAI plan raises the allowance (the limits page says 100 or more).
+2. **A single `Generate` frame may hold at most 2 000 characters** (close `3006` otherwise). The adapter sent the whole script in one frame, which would have failed any notice over 2 000 characters (the product allows 6 000). Scripts are now split into frames of at most 1 800 characters at sentence ends, rejoined exactly (the service joins consecutive texts as sent), and the 2 074-character live run above is the proof.
+3. The provider's own error wording is now kept for server logs (`providerDetail`, truncated) and never shown to users.
+
+Limits the service documents that the app already respects: 8 000 characters of unsynthesised backlog (our maximum is about 6 300), sessions of up to an hour, 120 s idle timeout (a session lives for one request). Source: https://www.assemblyai.com/docs/tts/limits (read 30 Oct 2026; the page says the values may change).
+
 ## Key handling
 
 The key is read only by `src/lib/speech/assemblyai.ts` on the server and sent only in the `Authorization` header. It is not in URLs, frames, logs, error messages, evidence files or the client bundle (checked 30 Oct). The key used for the 30 Oct run was pasted into a chat and must be treated as compromised: revoke it in the AssemblyAI dashboard and issue a new one.
