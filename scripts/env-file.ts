@@ -18,6 +18,23 @@ export function parseEnvFile(path: string): Record<string, string> {
 }
 
 /**
+ * Names of variables whose unquoted value has an inline `# comment`. Next.js and the scripts here drop the comment, but
+ * Vercel's dashboard, CLI and most other hosts keep it as part of the value, so copying such a file to a host is unsafe.
+ */
+export function inlineCommentNames(path: string): string[] {
+  const names: string[] = [];
+  for (const raw of fs.readFileSync(path, "utf8").split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line.startsWith("#")) continue;
+    const eq = line.indexOf("=");
+    if (eq < 0) continue;
+    const value = line.slice(eq + 1).trim();
+    if (!/^(["'])(.*)\1$/.test(value) && /\s#/.test(value)) names.push(line.slice(0, eq).trim());
+  }
+  return names;
+}
+
+/**
  * Loads `.env.local` into process.env for command-line scripts. Next.js does this for the app itself, but `tsx`
  * does not, so a key saved only in `.env.local` would otherwise be invisible to `npm run tts:smoke`. Variables
  * already set in the shell win, and blank values are ignored. Never prints a value.
