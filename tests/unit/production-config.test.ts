@@ -51,6 +51,14 @@ describe("production configuration check", () => {
     expect(checkProductionConfig(without(name)).problems.join(" ")).toMatch(pattern);
   });
 
+  it("refuses a connection string that still has its password placeholder, without revealing the string", () => {
+    const withPlaceholder = withEnv({ DATABASE_URL: "postgresql://postgres.abc:[YOUR-PASSWORD]@aws-0-eu.pooler.supabase.com:6543/postgres" });
+    const report = checkProductionConfig(withPlaceholder);
+    expect(report.problems.join(" ")).toMatch(/DATABASE_URL still contains its password placeholder/);
+    expect(JSON.stringify(report)).not.toContain("pooler.supabase.com");
+    expect(checkProductionConfig(withEnv({ MIGRATION_DATABASE_URL: "postgresql://u:[YOUR-PASSWORD]@h:5432/p" })).problems.join(" ")).toMatch(/MIGRATION_DATABASE_URL still contains/);
+  });
+
   it("refuses the local storage driver and the embedded database", () => {
     expect(checkProductionConfig(withEnv({ STORAGE_DRIVER: "local" })).problems.join(" ")).toMatch(/does not persist/);
     expect(checkProductionConfig(without("DATABASE_URL")).problems.join(" ")).toMatch(/embedded database cannot persist/);
