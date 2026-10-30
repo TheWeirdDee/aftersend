@@ -162,7 +162,7 @@ DATABASE_URL=postgres://… npm run db:migrate
 
 ```bash
 npm run typecheck && npm run lint
-npm test                       # Vitest: 216 unit + integration tests
+npm test                       # Vitest: 226 unit + integration tests
 npx next build && npm run test:e2e   # Playwright: 49 tests (desktop + mobile) against a production build
 npm run audio:inspect -- file.wav    # structure, level, clipping and silence of a WAV (not pronunciation)
 ```
@@ -177,6 +177,7 @@ The automated suites use the test-tone provider. **They prove storage, revision 
 
 ```bash
 npm run check:env -- --file .env.production.local   # production configuration, names only, never values
+npm run email:probe                                # one real message via Resend to its test address, no mailbox needed
 npm run verify:deploy -- https://<domain> [--storage]  # deployed instance, incl. private-bucket proof
 npm run verify:live -- https://<domain> --email <mailbox> --confirm-live   # full journey with real email and speech
 ```
@@ -211,7 +212,7 @@ Target: Vercel (web + API, `maxDuration` 60 s for synthesis), Supabase Postgres,
 
 Only measured numbers are listed. Details are in [`RESULTS.md`](RESULTS.md).
 
-- 30 Oct 2026: 216/216 Vitest and 49/49 Playwright tests pass locally on the final code (run history, including the failures along the way, is in `RESULTS.md`). Lint, typecheck and the production build are clean.
+- 30 Oct 2026: 226/226 Vitest and 49/49 Playwright tests pass locally on the final code (run history, including the failures along the way, is in `RESULTS.md`). Lint, typecheck and the production build are clean.
 - 18 Oct 2026 (historical): 54/54 Vitest and 16/16 Playwright.
 - Lighthouse mobile on a local production build: landing page 90–94 performance, 100 accessibility, 100 best practices, 100 SEO; `/demo` 93–95 performance and 100 on the rest.
 - No horizontal overflow on any page at 320, 375, 390, 430, 768, 1024, 1280, 1440 or 1920px.
@@ -221,6 +222,7 @@ Only measured numbers are listed. Details are in [`RESULTS.md`](RESULTS.md).
 
 - **Speech quality is unreviewed.** The integration works against the real service, but no person has listened to the output, `aai-kyla`, the EU endpoint and the provider's limits are untested, and the key used for the live run was exposed and must be rotated.
 - **Recovery depends on the mailbox.** A workspace connected to an email survives cleared cookies, a new browser and a lapsed session. A workspace started *without* email is still only a cookie until it is connected (the header offers **Save to email**). Losing the mailbox as well needs an operator. There is no second factor. Details and residual risks: `docs/ARCHITECTURE.md` section 8A.
+- **On the free AssemblyAI plan, the whole account may open only 5 speech sessions a minute** (confirmed live). Every generation, retry and regeneration uses one; beyond that users are told how many seconds to wait. A paid plan raises it.
 - Withdrawal stops every application route immediately, but cannot recall audio a listener already downloaded or buffered.
 - Synthesis runs inside the API request under a 50 s deadline. A very long notice can fail with "ran out of time" rather than hang; a background worker would remove that limit.
 - Place names are not detected as critical facts; the editor asks the publisher to check them.
