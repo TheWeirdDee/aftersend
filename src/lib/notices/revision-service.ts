@@ -368,7 +368,10 @@ export async function generatePreview(ownerId: string, revisionId: string) {
         });
         break;
       } catch (err) {
-        const backoff = (err instanceof SpeechProviderError && err.kind === "rate_limited" ? 2000 : 500) * 2 ** retries;
+        // When the provider says how long to wait (its new-sessions-per-minute window), wait exactly that, if it fits
+        // in the time left; otherwise fail now with the number, rather than burn the budget on retries that cannot work.
+        const hinted = err instanceof SpeechProviderError && err.retryAfterSec != null ? err.retryAfterSec * 1000 + 250 : null;
+        const backoff = hinted ?? (err instanceof SpeechProviderError && err.kind === "rate_limited" ? 2000 : 500) * 2 ** retries;
         if (
           err instanceof SpeechProviderError &&
           err.retryable &&
@@ -454,6 +457,8 @@ export async function generatePreview(ownerId: string, revisionId: string) {
       attemptId,
       kind: providerErr?.kind ?? (err instanceof AppError ? err.code : "internal"),
       providerCode: providerErr?.providerCode,
+      providerDetail: providerErr?.providerDetail,
+      retryAfterSec: providerErr?.retryAfterSec,
       retries,
       elapsedMs: env().SYNTHESIS_DEADLINE_MS - (deadline - Date.now()),
     });
@@ -475,8 +480,17 @@ export async function generatePreview(ownerId: string, revisionId: string) {
       );
     if (err instanceof AppError) throw err;
     if (providerErr) {
+      if (providerErr.kind === "rate_limited") {
+        const wait = providerErr.retryAfterSec;
+        throw new AppError(
+          "rate_limited",
+          wait ? `The speech service is busy right now. Try again in ${wait} seconds.` : "The speech service is busy right now. Try again in a minute.",
+          true,
+          { retryAfterSec: wait ?? 60 },
+        );
+      }
       throw new AppError(
-        providerErr.kind === "rate_limited" ? "rate_limited" : providerErr.kind === "not_configured" ? "provider_not_configured" : "synthesis_failed",
+        providerErr.kind === "not_configured" ? "provider_not_configured" : "synthesis_failed",
         `Audio generation failed: ${providerErr.message}`,
         providerErr.retryable,
       );
