@@ -9,8 +9,8 @@ export const POST = route<{ revisionId: string }>(
   async (req, { params }) => {
     const user = await requireUser();
     const { revisionId } = await params;
-    await readJson(req, approveSchema);
-    return json(await approveRevision(user.id, revisionId));
+    const { expectedVersion } = await readJson(req, approveSchema);
+    return json(await approveRevision(user.id, revisionId, { expectedVersion }));
   },
   { mutation: true },
 );
