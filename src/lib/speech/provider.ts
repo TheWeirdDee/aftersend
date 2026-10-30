@@ -37,6 +37,10 @@ export class SpeechProviderError extends Error {
     message: string,
     public readonly retryable: boolean,
     public readonly providerCode?: string | number,
+    /** How long the provider asked callers to wait before trying again, when it said. */
+    public readonly retryAfterSec?: number,
+    /** The provider's own wording, truncated. For server logs only: it is never put in an API response. */
+    public readonly providerDetail?: string,
   ) {
     super(message);
     this.name = "SpeechProviderError";
