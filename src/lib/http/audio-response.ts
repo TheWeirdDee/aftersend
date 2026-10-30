@@ -1,13 +1,20 @@
 import "server-only";
 
 /** Serves audio bytes with HTTP Range support (required for seeking, notably in Safari). */
-export function audioResponse(bytes: Uint8Array, mime: string, rangeHeader: string | null, cacheControl: string) {
+export function audioResponse(
+  bytes: Uint8Array,
+  mime: string,
+  rangeHeader: string | null,
+  cacheControl: string,
+  extraHeaders: Record<string, string> = {},
+) {
   const size = bytes.byteLength;
   const base: Record<string, string> = {
     "Content-Type": mime,
     "Accept-Ranges": "bytes",
     "Cache-Control": cacheControl,
     "X-Content-Type-Options": "nosniff",
+    ...extraHeaders,
   };
   const m = rangeHeader?.match(/^bytes=(\d*)-(\d*)$/);
   if (m && (m[1] || m[2])) {
