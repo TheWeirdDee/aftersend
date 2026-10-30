@@ -63,6 +63,7 @@ export default async function EditNoticePage({ params }: { params: Promise<{ id:
             draft
               ? {
                   revisionId: draft.id,
+                  version: draft.version,
                   title: draft.title,
                   displayText: draft.displayText,
                   updatePreface: draft.updatePreface,
