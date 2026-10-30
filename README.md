@@ -178,6 +178,8 @@ The automated suites use the test-tone provider. **They prove storage, revision 
 ```bash
 npm run check:env -- --file .env.production.local   # production configuration, names only, never values
 npm run email:probe                                # one real message via Resend to its test address, no mailbox needed
+npm run env:sync -- --app-url https://<domain>     # dry run: checks .env.local and lists what would be set on Vercel Production (add --apply to set)
+npm run db:set-password -- --vercel                # percent-encodes a new database password, tests both URLs, updates .env.local and Vercel
 npm run verify:deploy -- https://<domain> [--storage]  # deployed instance, incl. private-bucket proof
 npm run verify:live -- https://<domain> --email <mailbox> --confirm-live   # full journey with real email and speech
 ```
