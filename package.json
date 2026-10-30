@@ -16,7 +16,10 @@
     "tts:probe": "tsx scripts/tts-probe.ts",
     "tts:smoke": "tsx --conditions=react-server scripts/tts-smoke.ts",
     "audio:inspect": "tsx scripts/inspect-audio.ts",
-    "vercel-build": "npm run db:migrate -- --if-configured && next build"
+    "check:env": "tsx scripts/check-env.ts",
+    "verify:deploy": "tsx scripts/verify-deployment.ts",
+    "verify:live": "tsx scripts/live-journey.ts",
+    "vercel-build": "npm run db:migrate -- --if-configured --production-only && next build"
   },
   "engines": {
     "node": ">=20.9"
