@@ -4,7 +4,8 @@ export type SynthesisInput = {
   text: string;
   voiceId: string;
   outputFormat: "wav";
-  requestContext: { revisionId: string; attemptId: string; signal?: AbortSignal };
+  /** `timeoutMs` caps this one attempt so retries fit inside the caller's overall deadline. */
+  requestContext: { revisionId: string; attemptId: string; signal?: AbortSignal; timeoutMs?: number };
 };
 
 export type SynthesisResult = {
