@@ -16,8 +16,32 @@ export const users = pgTable("users", {
   id: text("id").primaryKey(),
   kind: text("kind", { enum: ["workspace", "demo"] }).notNull(),
   displayName: text("display_name").notNull(),
+  // Set only after the address has been proven with a one-time code. Stored lower-case and trimmed.
+  email: text("email"),
+  emailVerifiedAt: ts("email_verified_at"),
   createdAt: ts("created_at").notNull().defaultNow(),
-});
+},
+(t) => [uniqueIndex("users_email_idx").on(t.email).where(sql`${t.email} is not null`)]);
+
+/**
+ * One-time sign-in codes. Only an HMAC of the code is stored. A challenge dies after 5 wrong guesses, after
+ * 10 minutes, once used, or when a newer code is requested for the same address.
+ */
+export const authChallenges = pgTable(
+  "auth_challenges",
+  {
+    id: text("id").primaryKey(),
+    email: text("email").notNull(),
+    codeHash: text("code_hash").notNull(),
+    // The signed-in workspace that asked for the code, if any. Only that workspace may be linked or merged.
+    linkUserId: text("link_user_id"),
+    attempts: integer("attempts").notNull().default(0),
+    createdAt: ts("created_at").notNull().defaultNow(),
+    expiresAt: ts("expires_at").notNull(),
+    consumedAt: ts("consumed_at"),
+  },
+  (t) => [index("auth_challenges_email_idx").on(t.email, t.createdAt)],
+);
 
 export const sessions = pgTable(
   "sessions",
@@ -163,6 +187,7 @@ export const rateLimits = pgTable("rate_limits", {
   count: integer("count").notNull(),
 });
 
+export type AuthChallenge = typeof authChallenges.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type Notice = typeof notices.$inferSelect;
 export type NoticeRevision = typeof noticeRevisions.$inferSelect;
