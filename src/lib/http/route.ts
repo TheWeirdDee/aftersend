@@ -36,13 +36,34 @@ export function assertSameOrigin(req: NextRequest) {
   if (originHost !== host) throw new AppError("forbidden", "Cross-site request refused.");
 }
 
+/**
+ * Reads the body while counting bytes, and cancels the stream the moment the limit is passed. Content-Length
+ * can be absent or wrong (chunked uploads), so it is only an early exit, never the bound itself.
+ */
+async function readBoundedText(req: NextRequest): Promise<string> {
+  if (!req.body) return "";
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > MAX_BODY_BYTES) {
+      await reader.cancel().catch(() => {});
+      throw new AppError("payload_too_large", "Request body is too large.");
+    }
+    chunks.push(value);
+  }
+  return new TextDecoder().decode(Buffer.concat(chunks));
+}
+
 export async function readJson<T extends z.ZodType>(req: NextRequest, schema: T): Promise<z.infer<T>> {
   const type = req.headers.get("content-type") ?? "";
   if (!type.includes("application/json")) throw new AppError("bad_request", "Expected a JSON body.");
   const declared = Number(req.headers.get("content-length") ?? "0");
   if (declared > MAX_BODY_BYTES) throw new AppError("payload_too_large", "Request body is too large.");
-  const raw = await req.text();
-  if (Buffer.byteLength(raw) > MAX_BODY_BYTES) throw new AppError("payload_too_large", "Request body is too large.");
+  const raw = await readBoundedText(req);
   let data: unknown;
   try {
     data = raw ? JSON.parse(raw) : {};
