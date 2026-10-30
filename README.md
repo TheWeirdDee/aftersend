@@ -141,7 +141,7 @@ Requires Node 20.9+ (CI uses 24).
 ```bash
 git clone https://github.com/TheWeirdDee/aftersend && cd aftersend
 npm install
-cp .env.example .env.local      # then edit
+cp .env.example .env.local      # then edit; gitignored. The scripts (tts:smoke, verify:live, ...) read it too
 npm run dev                     # http://localhost:3000
 ```
 
@@ -162,7 +162,7 @@ DATABASE_URL=postgres://… npm run db:migrate
 
 ```bash
 npm run typecheck && npm run lint
-npm test                       # Vitest: 187 unit + integration tests
+npm test                       # Vitest: 216 unit + integration tests
 npx next build && npm run test:e2e   # Playwright: 49 tests (desktop + mobile) against a production build
 npm run audio:inspect -- file.wav    # structure, level, clipping and silence of a WAV (not pronunciation)
 ```
@@ -172,6 +172,16 @@ Integration tests cover creation, synthesis, idempotency, concurrent approvals, 
 `.github/workflows/ci.yml` runs lint, typecheck, the unit and integration tests, a production build and the browser suite on every push and pull request. It has not yet run on GitHub. The live AssemblyAI smoke test is a manual job that spends credits.
 
 The automated suites use the test-tone provider. **They prove storage, revision and consistency behaviour, not speech quality or pronunciation.** Real-provider checks are in `npm run tts:smoke` (see below).
+
+### Release tooling
+
+```bash
+npm run check:env -- --file .env.production.local   # production configuration, names only, never values
+npm run verify:deploy -- https://<domain> [--storage]  # deployed instance, incl. private-bucket proof
+npm run verify:live -- https://<domain> --email <mailbox> --confirm-live   # full journey with real email and speech
+```
+
+See `docs/DEPLOYMENT.md` and `docs/RELEASE_RUNBOOK.md`.
 
 ### Sponsor checks (need a valid `ASSEMBLYAI_API_KEY`)
 
@@ -201,7 +211,7 @@ Target: Vercel (web + API, `maxDuration` 60 s for synthesis), Supabase Postgres,
 
 Only measured numbers are listed. Details are in [`RESULTS.md`](RESULTS.md).
 
-- 30 Oct 2026: 187/187 Vitest and 49/49 Playwright tests pass locally on the final code (run history, including the failures along the way, is in `RESULTS.md`). Lint, typecheck and the production build are clean.
+- 30 Oct 2026: 216/216 Vitest and 49/49 Playwright tests pass locally on the final code (run history, including the failures along the way, is in `RESULTS.md`). Lint, typecheck and the production build are clean.
 - 18 Oct 2026 (historical): 54/54 Vitest and 16/16 Playwright.
 - Lighthouse mobile on a local production build: landing page 90–94 performance, 100 accessibility, 100 best practices, 100 SEO; `/demo` 93–95 performance and 100 on the rest.
 - No horizontal overflow on any page at 320, 375, 390, 430, 768, 1024, 1280, 1440 or 1920px.
