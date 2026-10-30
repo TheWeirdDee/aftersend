@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
+import { log } from "../log";
 
 export type ErrorCode =
   | "bad_request"
   | "validation_failed"
   | "unauthenticated"
+  | "invalid_code"
   | "forbidden"
   | "not_found"
   | "conflict"
@@ -22,6 +24,7 @@ const STATUS: Record<ErrorCode, number> = {
   bad_request: 400,
   validation_failed: 422,
   unauthenticated: 401,
+  invalid_code: 401,
   forbidden: 403,
   not_found: 404,
   conflict: 409,
@@ -71,7 +74,7 @@ export function toEnvelope(err: unknown): { status: number; body: ErrorEnvelope 
   }
   // Unknown failures are logged server-side with their stack and the correlation id. Only the correlation id
   // reaches the client, so a support request can be matched to the log line.
-  console.error(`[aftersend] ${correlationId}`, err instanceof Error ? err.stack ?? err.message : err);
+  log("error", "request.failed", { correlationId, error: err });
   return {
     status: 500,
     body: { code: "internal", message: "Something went wrong on our side.", retryable: true, correlationId },
