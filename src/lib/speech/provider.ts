@@ -12,6 +12,8 @@ export type SynthesisResult = {
   audio: Uint8Array;
   mimeType: "audio/wav" | "audio/mpeg";
   durationMs: number | null;
+  /** The duration the provider itself reported for this audio, when it reports one. */
+  reportedDurationMs?: number | null;
   providerRequestId: string | null;
   providerModel: string | null;
   startedAt: Date;
