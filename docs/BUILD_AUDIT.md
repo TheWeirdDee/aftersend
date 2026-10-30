@@ -93,9 +93,22 @@ Evidence key: **U** unit test, **I** integration test (PGlite + local store), **
 | 13 | Body limit after buffering | `req.text()` first | **Fixed.** Streamed read cancelled at 32 KB | U chunked-body test |
 | 14 | Published object cleanup incomplete | Copy not tracked until promotion | **Fixed for tracked objects.** An intent row is written before the copy; not-ready rows are removed after 1 h. Bytes with no row at all would not be found | I reconciliation tests |
 | 15 | Old workers lack claim guard | Completion not conditioned on owner | **Fixed.** `synthesis_claim` is required for success and failure updates | I stalled-worker tests (late success, late failure) |
-| 16 | Workspace recovery and retention | Browser-only by design | **Partly addressed.** Expired sessions and rate-limit rows are purged. **Recovery is unresolved and needs a product decision** (ARCHITECTURE section 9) | I retention test |
+| 16 | Workspace recovery and retention | Browser-only by design | **Resolved in the third pass.** Decision taken: passwordless email (one-time codes). Anonymous workspaces can be connected to a verified email, accounts can be recovered on any device, sessions can be ended everywhere, and expired sessions, rate-limit rows and spent sign-in codes are purged. Residual: mailbox compromise equals workspace compromise, there is no second factor, and an operator is needed if the mailbox is lost | I `email-auth.test.ts` (30), U `email.test.ts`, B `auth.spec.ts` (11), I `persistence.test.ts` |
 | 17 | Health is not readiness | Single endpoint | **Fixed.** `/api/health` is liveness; `/api/ready` checks database, speech configuration and a storage write/read/delete probe | I |
 | - | Conflict dialog lacks focus trap and Escape | - | **Fixed** | B keyboard containment and focus return |
 | - | Resumed synthesizing draft polled once | - | **Fixed**; stalled claims show a recovery message | B (mocked status) |
 | - | No CI | - | **Added** `.github/workflows/ci.yml`; not yet run on GitHub | R |
 | - | Misleading comments | - | **Corrected** (retry budget, immutable caching, "decode", logging claim); decorative dividers removed | R |
+
+
+## Third pass, 30 October 2026: recovery, live-probe tooling, infrastructure preparation
+
+| Item | Status |
+|---|---|
+| Workspace recovery (#16) | Implemented and tested. See ARCHITECTURE section 8A. |
+| A found defect: the 30 s resend cooldown blocked a new code right after the previous one was used | Fixed (cooldown now protects only a still-usable code); regression test added. Found by the browser suite. |
+| Live AssemblyAI verification | **Blocked: no replacement key.** Tooling extended (both voices, repeats, a long notice, a timeout probe, a request budget). The no-cost bad-key probe was run live: an invalid key is refused as non-retryable `auth` (provider code 1008). |
+| Human listening review | **Not done.** Template: `docs/LISTENING_REVIEW.md`. |
+| Production infrastructure | Configuration, migrations, scripts, readiness (now including email and auth) and exact setup steps are prepared (`docs/DEPLOYMENT.md`, `scripts/verify-deployment.ts`). **No external account was touched; nothing is provisioned or deployed.** |
+| Hosted-database path | Exercised with `postgres-js` over the Postgres wire protocol against PGlite behind a socket (migrations, publish, correction, withdrawal, simultaneous approvals, email sign-in). Not real Postgres, not Supabase. |
+| Restart persistence | Tested for the local database and object store. |
