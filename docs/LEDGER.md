@@ -20,6 +20,8 @@
 - Passwordless email sign-in (one-time codes), linking and merging of browser workspaces, recovery on another device, sign-out everywhere (unit, integration and browser tests; email delivery tested only against the file outbox and a mocked Resend client)
 - Structured JSON logging with credential redaction; liveness vs readiness (database, speech, storage, email, auth); deployment verification script
 
+- Production configuration checker, hosted-production guards, locked and production-only migrations, TLS and timeouts for the hosted database, release runbook, deployment verification and live-journey tools (the last rehearsed locally only)
+
 ## Implemented but unverified
 - S3 storage driver (no bucket available)
 - Hosted Postgres path (`postgres-js` + `db:migrate`); tests use PGlite
