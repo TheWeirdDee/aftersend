@@ -29,6 +29,31 @@ export const sourceUrlSchema = z
     }
   }, "Source must be a full http(s) URL.");
 
+/** Optional fields in a PATCH keep "omitted" (leave alone) distinct from null (clear). */
+const patchSourceUrl = z
+  .string()
+  .trim()
+  .max(500)
+  .nullable()
+  .optional()
+  .transform((v) => (v === undefined ? undefined : v ? v : null))
+  .refine((v) => {
+    if (!v) return true;
+    try {
+      const u = new URL(v);
+      return u.protocol === "https:" || u.protocol === "http:";
+    } catch {
+      return false;
+    }
+  }, "Source must be a full http(s) URL.");
+
+const updatePreface = z
+  .string()
+  .max(300)
+  .nullable()
+  .optional()
+  .transform((v) => (v === undefined ? undefined : v ? stripTags(stripControl(v)).trim() || null : null));
+
 export const createNoticeSchema = z.object({
   title: cleanText(MAX_TITLE_CHARS, "Title"),
   text: cleanText(MAX_NOTICE_CHARS, "Notice text"),
@@ -41,22 +66,26 @@ export const createRevisionSchema = z.object({
   title: cleanText(MAX_TITLE_CHARS, "Title").optional(),
   text: cleanText(MAX_NOTICE_CHARS, "Notice text"),
   voiceId: z.string().trim().min(1).max(100).optional(),
-  updatePreface: z
-    .string()
-    .max(300)
-    .optional()
-    .nullable()
-    .transform((v) => (v ? stripTags(stripControl(v)).trim() || null : null)),
+  updatePreface: updatePreface.transform((v) => v ?? null),
+  // Retrying a create whose response was lost returns the same draft instead of a second one.
+  clientToken: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/).optional(),
 });
 
-export const updateDraftSchema = createRevisionSchema.extend({
+export const updateDraftSchema = z.object({
+  title: cleanText(MAX_TITLE_CHARS, "Title").optional(),
   text: cleanText(MAX_NOTICE_CHARS, "Notice text").optional(),
+  voiceId: z.string().trim().min(1).max(100).optional(),
+  updatePreface,
   confirmedCriticalFacts: z.boolean().optional(),
-  sourceUrl: sourceUrlSchema,
+  sourceUrl: patchSourceUrl,
+  // The version this edit was made against; a stale writer is refused rather than overwriting.
+  expectedVersion: z.number().int().positive().optional(),
 });
 
 export const approveSchema = z.object({
   confirmedCriticalFacts: z.literal(true, { message: "Confirm the critical facts before publishing." }),
+  // Approval names the exact saved version whose audio was previewed.
+  expectedVersion: z.number().int().positive({ message: "Say which saved version you are approving." }),
 });
 
 export function isValidTimezone(tz: string) {
