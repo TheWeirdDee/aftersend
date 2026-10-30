@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { env } from "../env";
@@ -37,9 +38,18 @@ class LocalStore implements ObjectStore {
   async put(key: string, bytes: Uint8Array) {
     const full = this.resolve(key);
     await fs.mkdir(path.dirname(full), { recursive: true });
-    const tmp = `${full}.${process.pid}.${Date.now()}.tmp`;
+    // A unique name per write: two concurrent puts of the same key must not share a temp file.
+    const tmp = `${full}.${randomUUID()}.tmp`;
     await fs.writeFile(tmp, bytes);
-    await fs.rename(tmp, full);
+    try {
+      await fs.rename(tmp, full);
+    } catch (err) {
+      await fs.rm(tmp, { force: true });
+      // Keys are content-addressed, so a concurrent writer of the same key wrote the same bytes. Windows refuses
+      // to rename over a file that is open or was just replaced; if the target already holds these bytes, we are done.
+      const existing = await fs.readFile(full).catch(() => null);
+      if (!existing || Buffer.compare(existing, bytes) !== 0) throw err;
+    }
   }
 
   async get(key: string) {
@@ -126,7 +136,7 @@ export class SupabaseStore implements ObjectStore {
   async put(key: string, bytes: Uint8Array, contentType: string) {
     const res = await this.fetchImpl(this.url(key), {
       method: "POST",
-      headers: this.headers({ "Content-Type": contentType, "x-upsert": "true", "Cache-Control": "max-age=31536000" }),
+      headers: this.headers({ "Content-Type": contentType, "x-upsert": "true", "Cache-Control": "private, no-store" }),
       body: bytes as unknown as BodyInit,
     });
     if (!res.ok) throw new Error(`Storage upload failed (${res.status}).`);
@@ -147,6 +157,19 @@ export class SupabaseStore implements ObjectStore {
       body: JSON.stringify({ prefixes: [key] }),
     });
     if (!res.ok && res.status !== 404) throw new Error(`Storage delete failed (${res.status}).`);
+  }
+}
+
+const PROBE_KEY = `staging/health/probe/${"0".repeat(64)}.wav`;
+
+/** Writes, reads back and removes a tiny object, proving the configured store is reachable and writable. */
+export async function probeObjectStore(s: ObjectStore = objectStore()): Promise<void> {
+  const payload = new TextEncoder().encode(`probe-${Date.now()}`);
+  await s.put(PROBE_KEY, payload, "audio/wav");
+  const back = await s.get(PROBE_KEY);
+  await s.delete(PROBE_KEY);
+  if (!back || back.byteLength !== payload.byteLength || back.some((b, i) => b !== payload[i])) {
+    throw new Error("Object store read-back did not match what was written.");
   }
 }
 
