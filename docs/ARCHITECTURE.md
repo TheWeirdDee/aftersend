@@ -100,7 +100,7 @@ The previous policy, `public, max-age=31536000, immutable`, let a browser or sha
 
 - **Staging previews older than 24 h.** The revision is detached first, conditioned on that exact asset still being its preview, then the row is marked deleted and the bytes removed unless another live row points at the same object. A preview replaced or approved while cleanup runs is left alone (`reliability.test.ts`).
 - **Abandoned published copies** (`content_ready = false`, older than 1 h).
-- **Expired sessions** and **rate-limit rows older than 24 h.**
+- **Expired sessions**, **rate-limit rows older than 24 h** and **sign-in challenges** that expired more than an hour ago.
 
 Ready published audio is never removed: superseded versions are the notice's history. There is no workspace recovery (see §9).
 
@@ -115,12 +115,55 @@ Ready published audio is never removed: superseded versions are the notice's his
 - Secrets: `ASSEMBLYAI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` and the object-storage keys are read only by server modules. A search of `.next/static` for these names finds nothing.
 - The listening gate is an attestation: the editor requires 90 % of the preview to have actually played (not merely started, and skipping ahead does not count) and a ticked confirmation. The server records that the publisher approved a specific saved version; it cannot know that anyone listened.
 
+## 8A. Accounts, sign-in and recovery
+
+A **workspace** is a row in `users`. It is *anonymous* (reachable only through a session cookie), *email-verified* (`email` and `email_verified_at` set), or *demo* (fictional data, never linkable). Every notice belongs to exactly one workspace and every read or write checks that ownership, so email accounts add a way to reach a workspace without changing who may touch what.
+
+### Sign-in with a one-time code
+
+There are no passwords and no links in the email. A code was chosen over a magic link on purpose: a link can be consumed by a mail scanner's prefetch, can be opened on the wrong device, and teaches users to click links in sign-in mail; a code is typed by the person who asked for it, on the device they are using.
+
+1. `POST /api/auth/request { email }` creates a challenge (a 6-digit code from `crypto.randomInt`) and emails it. The response is always `202 { ok, cooldownSec }`.
+2. `POST /api/auth/verify { email, code }` checks it and signs the browser in with a **brand-new session token**; the token the browser presented before (if any) is deleted, so a planted or stale token cannot ride through sign-in.
+
+Properties, each covered by a test in `tests/integration/email-auth.test.ts` unless noted:
+
+- **Codes are not stored.** Only `HMAC-SHA256(AUTH_SECRET, challengeId:code)` is kept. In production the app refuses to issue codes without `AUTH_SECRET`.
+- **Single use, short life, newest wins.** Valid for 10 minutes, consumed atomically (two simultaneous correct submissions: exactly one signs in), and requesting a new code retires the old one.
+- **Guessing is bounded.** 5 wrong guesses kill the code (even a later correct guess fails); 30 verify attempts per address and per IP per hour; 5 code requests per address and 20 per IP per hour (the two IP limits are configurable). A 6-digit code with these limits gives an online guesser a chance of about 2.5 in 100 000 per hour per address (5 guesses on each of 5 codes, out of 1 000 000).
+- **No account enumeration.** The request path never looks an address up in `users`; the response, status and email body are identical for known and unknown addresses (compared in a test), and every verify failure (wrong, expired, used, locked, unknown address) returns the same message. The resend cooldown (30 s, applied only while the earlier code is still usable) is the same for every address. What this cannot hide: rate-limit responses are per address and so reveal that *someone* has been requesting codes for it, and delivery timing is up to the mail provider.
+- **Plain-text email only,** sent server-side with a key that is never sent to the browser, never logged and never placed in a URL (`tests/unit/email.test.ts`). Provider error bodies are not echoed.
+
+### Linking, merging and takeover resistance
+
+Whether an email attaches to the browser's current workspace is decided by two facts that must both hold: the code was **requested** from that workspace's session, and is **verified** from the same session. Then:
+
+| Situation | Result |
+|---|---|
+| New address, browser holds an anonymous workspace that asked | The email is attached to that workspace; its notices and link stay as they are. |
+| Address already owns an account, browser holds an anonymous workspace that asked | The workspace's notices move into the account and the empty workspace is deleted (one way only: the account's notices never move). The sign-in page says this before a code is requested. |
+| Address already owns an account, no workspace involved | Plain sign-in, including from a new device or after clearing cookies. |
+| Code requested in one session but verified in another | No link, no merge. |
+| Demo workspace | Never linked or merged. |
+
+To take over someone's notices an attacker would need the victim's mailbox (to read the code) *and* the victim's cookie workspace (to merge it), or the victim's mailbox alone, which is the same trust as any email-based recovery. Holding only a signed-in workspace of their own gets an attacker nothing (tested: a wrong guess fails, and the account's notices stay put).
+
+**Residual risks, stated plainly.** Whoever controls the mailbox controls the workspace. A person who is talked into reading a code aloud can have their address attached to the caller's workspace; the email says, in plain words, never to share it and what entering it will do. There is no second factor.
+
+### Sessions
+
+Sessions last 30 days from sign-in (absolute, no sliding renewal; signing in again is a code away). **Sign out** removes this browser's session. **Sign out everywhere** (`/app/account`) deletes every session of the account on every device. Expired sessions are purged by the daily cleanup. The cookie is `httpOnly`, `SameSite=Lax` and `Secure` in production.
+
+### What a user sees
+
+`/signin` (email, then code), `/app/account` (status, connect an email, sign out everywhere), a **Save to email** prompt in the header for anonymous workspaces, and a workspace gate that offers email first. The anonymous "start without email" path still exists and can be connected later.
+
 ## 9. Known limitations
 
-- **Workspace recovery is not implemented.** A workspace is a cookie. Clearing cookies, switching browsers or letting the 30-day session lapse loses the ability to correct or withdraw its notices, which stay public. This needs a product decision (email sign-in, or a recovery code shown at creation) before general use. Until then an operator must withdraw by hand with SQL (`update notices set state = 'withdrawn', withdrawn_at = now() where public_token = …`).
+- **Recovery depends on the mailbox.** A workspace connected to an email survives cleared cookies, a new browser and a lapsed session. An *anonymous* workspace (started without email) is still only a cookie: until it is connected, losing the cookie loses the ability to correct or withdraw its notices. A user who has also lost their mailbox needs an operator to withdraw by hand (`update notices set state = 'withdrawn', withdrawn_at = now() where public_token = ...`). There is no second factor and no mailbox-change flow yet.
 - Place names are not detected as critical facts; the UI asks the publisher to check them. Written dates and times are validated against the calendar; weekday/date agreement is not checked.
 - Synthesis runs inside the request. Real speech took about 2.6 s for a 15–19 s notice, so a 6 000-character notice (about six minutes of speech) may exceed the 50 s deadline and will fail with a clear message rather than hang.
-- Hosted Postgres, S3 and Supabase Storage paths are covered by mocked or local tests only.
+- The `postgres-js` driver is exercised over the Postgres wire protocol against PGlite behind a socket, and the Supabase Storage driver against a mocked HTTP API. Neither has run against real Supabase, and S3 has not run at all. Email delivery through Resend has been tested only against a mocked HTTP client.
 - Pronunciation of times, dates and school vocabulary has not been reviewed by a person.
 
 ## 10. Troubleshooting
