@@ -6,13 +6,14 @@ AfterSend turns a school notice into a spoken announcement behind one stable lin
 
 ![AfterSend landing page](docs/screenshots/landing.png)
 
-> **Status, 18 Oct 2026.** The product, the revision engine and the tests are built and pass locally. **Sponsor speech is not connected yet.** The AssemblyAI TTS adapter has no API key, and the hackathon endpoint's message protocol has not been published. Until both are in place, the deployed app refuses to generate audio rather than fake it. See [Known limitations](#known-limitations) and [`docs/ASSEMBLYAI_INTEGRATION.md`](docs/ASSEMBLYAI_INTEGRATION.md).
+> **Status, 30 Oct 2026.** The product, the revision engine and the tests pass locally. The AssemblyAI adapter speaks the documented Streaming TTS protocol and produced two valid recordings in one live run on 30 Oct 2026; **nobody has listened to them yet, and no key is configured right now** (the key used for that run was exposed and must be rotated), so further live checks are pending. Nothing is deployed. The 30 Oct audit fixes are described in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/BUILD_AUDIT.md`](docs/BUILD_AUDIT.md). See [Known limitations](#known-limitations) and [`docs/ASSEMBLYAI_INTEGRATION.md`](docs/ASSEMBLYAI_INTEGRATION.md).
 
 | | |
 |---|---|
 | Live app | Not deployed yet (needs hosting credentials and approval, see [Deployment](#deployment)) |
 | Demo video | Not recorded yet. Script and shot list: [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) |
 | Product spec | [`docs/PRD.md`](docs/PRD.md) |
+| Architecture, lifecycle, cache and withdrawal guarantees | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
 | Measured results | [`RESULTS.md`](RESULTS.md) |
 
 ---
@@ -39,7 +40,7 @@ AfterSend is the place you send people to, not the messaging channel. The publis
 
 ## Why AssemblyAI
 
-The spoken announcement is the product's output, and the hackathon's sponsor speech API is meant to produce it. The sponsor call sits behind a typed `SpeechProvider` interface in a server-only adapter ([`src/lib/speech/assemblyai.ts`](src/lib/speech/assemblyai.ts)) that targets the event endpoint `wss://streaming-tts.assemblyai.com/v1/ws`. Facts verified so far are recorded in [`src/lib/speech/assemblyai-protocol.ts`](src/lib/speech/assemblyai-protocol.ts): the endpoint is live, and it rejects unauthenticated sockets with a documented error frame ([evidence](evidence/tts-probe-unauthenticated-2026-10-18.json)). Nothing beyond that has been guessed.
+The spoken announcement is the product's output, and the hackathon's sponsor speech API is meant to produce it. The sponsor call sits behind a typed `SpeechProvider` interface in a server-only adapter ([`src/lib/speech/assemblyai.ts`](src/lib/speech/assemblyai.ts)) that speaks AssemblyAI's Streaming TTS WebSocket protocol at `wss://tts.us.assemblyai.com/v1/ws`. The wire format (auth header, query parameters, `Generate`/`Flush` frames, base64 `Audio` frames) is taken from AssemblyAI's published quickstart and recorded in [`src/lib/speech/assemblyai-protocol.ts`](src/lib/speech/assemblyai-protocol.ts). `npm run tts:smoke` exercises it against the real service with a key; pronunciation still needs a person to listen to the output.
 
 ## Features
 
@@ -64,8 +65,8 @@ flowchart LR
   P[Publisher] --> E[Notice editor<br/>/app/notices/:id/edit]
   E -->|POST /api/notices/:id/revisions| RS[Revision service<br/>immutable drafts + diff]
   E -->|POST /api/revisions/:id/generate| RS
-  RS -->|SpeechProvider.synthesize| TTS[AssemblyAI streaming TTS<br/>wss://streaming-tts.assemblyai.com/v1/ws]
-  TTS -->|audio| V[Decode check + SHA-256]
+  RS -->|SpeechProvider.synthesize| TTS[AssemblyAI streaming TTS<br/>wss://tts.us.assemblyai.com/v1/ws]
+  TTS -->|audio| V[Structural check + SHA-256]
   V --> ST[(Object storage<br/>staging/…)]
   E -->|POST /api/revisions/:id/approve| TX[Approval transaction<br/>row lock + compare-and-swap]
   ST -->|verified copy| PUB[(Object storage<br/>published/notice/revision/sha.wav)]
@@ -118,22 +119,22 @@ docs/                                PRD, integration notes, demo script, submis
 | GET/POST | `/api/notices` | List / create draft (owner) |
 | GET | `/api/notices/:id` | Owner detail with revisions, audio, attempts |
 | POST | `/api/notices/:id/revisions` | Start a correction; returns diff and fact changes |
-| PATCH/DELETE | `/api/revisions/:id` | Edit / discard draft (edits invalidate stale previews) |
+| PATCH/DELETE | `/api/revisions/:id` | Edit / discard draft. Edits carry `expectedVersion`; a stale one gets `409`. Edits invalidate stale previews |
 | POST | `/api/revisions/:id/generate` | Synthesize (idempotent, rate-limited per user and IP) |
 | GET | `/api/revisions/:id/status` | Status, attempts, preview URL |
 | GET | `/api/revisions/:id/audio` | Owner-only preview audio (`no-store`, Range support) |
-| POST | `/api/revisions/:id/approve` | Atomic promotion; requires `confirmedCriticalFacts: true` |
+| POST | `/api/revisions/:id/approve` | Atomic promotion; requires `confirmedCriticalFacts: true` and the previewed `expectedVersion` |
 | POST | `/api/notices/:id/withdraw` | Withdraw |
 | GET | `/api/public/:token/current` | Listener manifest (`no-store`) |
-| GET | `/api/public/:token/audio/:revisionId/:sha.wav` | Current revision only, immutable cache |
-| GET | `/api/health`, `/api/voices` | Health / configured voices |
-| GET | `/api/cron/cleanup` | Deletes staging audio older than 24 h (Bearer `CRON_SECRET`) |
+| GET | `/api/public/:token/audio/:revisionId/:sha.wav` | Current revision only; `private, no-cache` with an ETag, so every reuse is re-checked |
+| GET | `/api/health`, `/api/ready`, `/api/voices` | Liveness / readiness (database, speech configuration, storage) / configured voices |
+| GET | `/api/cron/cleanup` | Expired previews, abandoned publish copies, expired sessions and rate-limit rows (Bearer `CRON_SECRET`) |
 
 Errors always use `{ code, message, retryable, correlationId }`. Raw provider or database errors never reach the client.
 
 ## Installation and running locally
 
-Requires Node 20.9+.
+Requires Node 20.9+ (CI uses 24).
 
 ```bash
 git clone https://github.com/TheWeirdDee/aftersend && cd aftersend
@@ -142,7 +143,7 @@ cp .env.example .env.local      # then edit
 npm run dev                     # http://localhost:3000
 ```
 
-Without `DATABASE_URL`, the app uses embedded Postgres in `.data/pglite` and migrates it automatically. To click through the full flow without sponsor credentials, set `SPEECH_PROVIDER=test` and `AFTERSEND_ALLOW_TEST_PROVIDER=1`. Every clip is then a tone labelled "Test audio · not AssemblyAI".
+Without `DATABASE_URL`, the app uses embedded Postgres in `.data/pglite` and migrates it automatically. Leaving a variable blank, as the template does, means "unset". To click through the full flow without sponsor credentials, set `SPEECH_PROVIDER=test` and `AFTERSEND_ALLOW_TEST_PROVIDER=1`. Every clip is then a tone labelled "Test audio · not AssemblyAI".
 
 ### Environment
 
@@ -159,20 +160,26 @@ DATABASE_URL=postgres://… npm run db:migrate
 
 ```bash
 npm run typecheck && npm run lint
-npm test                       # Vitest: 54 unit + integration tests
-npx next build && npm run test:e2e   # Playwright: 16 tests against a production build
+npm test                       # Vitest: 144 unit + integration tests
+npx next build && npm run test:e2e   # Playwright: 38 tests (desktop + mobile) against a production build
+npm run audio:inspect -- file.wav    # structure, level, clipping and silence of a WAV (not pronunciation)
 ```
 
-Integration tests cover creation, synthesis, idempotency, concurrent approvals, stale drafts, failed and malformed synthesis, retries, edits during synthesis, authorization, withdrawal and staging cleanup. The e2e journeys cover first publication, correction at the same URL (old audio URL stops resolving, the new one serves `audio/wav`), failed synthesis, the mobile listener, cross-workspace access, CSRF, competing approvals, reduced motion, rendering without JavaScript, dead links and keyboard focus.
+Integration tests cover creation, synthesis, idempotency, concurrent approvals, optimistic versioning, stale drafts, failed and malformed synthesis, retries and deadlines, stalled-worker takeover, cleanup races, public cache headers, authorization, withdrawal and readiness. Unit tests include the AssemblyAI adapter against a local WebSocket server that speaks the documented frames. The e2e journeys cover first publication, correction at the same URL (a browser that cached the old audio is refused after the correction and after withdrawal), autosave ordering and lost responses, two-tab conflicts, provider failure and dropped connections, the listening gate, cross-workspace and anonymous access, CSRF, competing approvals, widths from 320 to 1440 px, automated accessibility scans, reduced motion, rendering without JavaScript, dead links and keyboard focus.
+
+`.github/workflows/ci.yml` runs lint, typecheck, the unit and integration tests, a production build and the browser suite on every push and pull request. It has not yet run on GitHub. The live AssemblyAI smoke test is a manual job that spends credits.
 
 The automated suites use the test-tone provider. **They prove storage, revision and consistency behaviour, not speech quality or pronunciation.** Real-provider checks are in `npm run tts:smoke` (see below).
 
-### Sponsor checks (once credentials exist)
+### Sponsor checks (need a valid `ASSEMBLYAI_API_KEY`)
 
 ```bash
 npm run tts:probe              # records server frames to evidence/raw/ (no key printed)
 npm run tts:smoke -- --runs 3  # original + corrected notice, saves WAVs and timings
+npm run audio:inspect -- evidence/raw/audio/*.wav
 ```
+
+Then listen to every file. The checks above cannot hear.
 
 ## Deployment
 
@@ -192,16 +199,19 @@ Target: Vercel (web + API, `maxDuration` 60 s for synthesis), Supabase Postgres,
 
 Only measured numbers are listed. Details are in [`RESULTS.md`](RESULTS.md).
 
-- 54/54 Vitest and 16/16 Playwright tests pass locally, on 18 Oct 2026.
+- 30 Oct 2026: 144/144 Vitest and 38/38 Playwright tests pass locally on the final code (run history, including the failures along the way, is in `RESULTS.md`). Lint, typecheck and the production build are clean.
+- 18 Oct 2026 (historical): 54/54 Vitest and 16/16 Playwright.
 - Lighthouse mobile on a local production build: landing page 90–94 performance, 100 accessibility, 100 best practices, 100 SEO; `/demo` 93–95 performance and 100 on the rest.
 - No horizontal overflow on any page at 320, 375, 390, 430, 768, 1024, 1280, 1440 or 1920px.
-- **AssemblyAI synthesis: not yet measured.** No authenticated request has been made.
+- **AssemblyAI synthesis, one live run on 30 Oct 2026:** 2 of 2 succeeded with `aai-jane`; first audio in about 1 s, about 2.6 s per request, for 15.8 s and 19.0 s of audio. Both files are intact and unclipped. **They have not been listened to**, and a single run is not a latency distribution.
 
 ## Known limitations
 
-- **No real sponsor audio yet.** Two things block it: an `ASSEMBLYAI_API_KEY`, and the hackathon TTS message schema (text frame, voices, audio format, completion frame). Once those exist, filling in `assemblyai-protocol.ts` and running `npm run tts:smoke` is the remaining work.
-- Workspaces are tied to one browser (cookie session). There are no email accounts yet.
-- Synthesis runs inside the API request (bounded by the provider timeout and retries). Long notices may need a background worker once real latency is known.
+- **Speech quality is unreviewed.** The integration works against the real service, but no person has listened to the output, `aai-kyla`, the EU endpoint and the provider's limits are untested, and the key used for the live run was exposed and must be rotated.
+- **Workspace recovery does not exist.** Workspaces are tied to one browser (cookie session), so losing the cookie means losing the ability to correct or withdraw that workspace's notices, which stay public. This needs a product decision (`docs/ARCHITECTURE.md`, section 9).
+- Withdrawal stops every application route immediately, but cannot recall audio a listener already downloaded or buffered.
+- Synthesis runs inside the API request under a 50 s deadline. A very long notice can fail with "ran out of time" rather than hang; a background worker would remove that limit.
+- Place names are not detected as critical facts; the editor asks the publisher to check them.
 - No PDF import, QR export, multiple-voice catalogue or analytics. These are P1/P2 in the PRD.
 - The AssemblyAI Agent was used during early research and hit its free-tier limit without producing a working integration. No bonus eligibility is claimed.
 
