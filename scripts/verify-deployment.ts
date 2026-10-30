@@ -9,6 +9,8 @@
  *   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... OBJECT_STORAGE_BUCKET=... npx tsx scripts/verify-deployment.ts <url> --storage
  *   ... --storage --object-key published/<notice>/<revision>/<sha>.wav     # also prove one real (e.g. superseded) object is unreachable
  */
+import "./load-env";
+
 const args = process.argv.slice(2);
 const base = args.find((a) => /^https?:\/\//.test(a))?.replace(/\/$/, "");
 const flagValue = (name: string) => {
