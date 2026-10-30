@@ -78,6 +78,7 @@ export class AssemblyAiTtsProvider implements SpeechProvider {
           audio,
           mimeType: "audio/wav",
           durationMs: Math.round((total / bytesPerSecond) * 1000),
+          reportedDurationMs,
           providerRequestId: sessionId,
           providerModel: model,
           startedAt,
