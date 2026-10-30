@@ -15,6 +15,7 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "tts:probe": "tsx scripts/tts-probe.ts",
     "tts:smoke": "tsx --conditions=react-server scripts/tts-smoke.ts",
+    "audio:inspect": "tsx scripts/inspect-audio.ts",
     "vercel-build": "npm run db:migrate -- --if-configured && next build"
   },
   "engines": {
@@ -37,6 +38,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@playwright/test": "^1.56.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.6.5",
