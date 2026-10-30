@@ -19,6 +19,42 @@ export const PROTOCOL_VERIFIED = true;
 export const DEFAULT_ENDPOINT = "wss://tts.us.assemblyai.com/v1/ws";
 export const SAMPLE_RATE = 24000;
 
+/**
+ * The service rejects a single Generate frame over 2 000 characters (close 3006). Stay well under it, because the
+ * limit counts code points and a script can mix scripts and emoji.
+ */
+export const MAX_GENERATE_CHARS = 1800;
+
+/**
+ * Splits a script into frames the service accepts. Consecutive texts are joined exactly as sent, so every chunk
+ * keeps its trailing whitespace and the pieces concatenate back to the original. Cuts prefer the end of a sentence,
+ * then any space, and only then a hard cut (never inside a surrogate pair).
+ */
+export function chunkForGenerate(text: string, max = MAX_GENERATE_CHARS): string[] {
+  const chunks: string[] = [];
+  let rest = text;
+  while (rest.length > max) {
+    const window = rest.slice(0, max);
+    let cut = -1;
+    const sentence = /[.!?\u2026]["')\]]*\s+/g;
+    for (let m = sentence.exec(window); m; m = sentence.exec(window)) cut = m.index + m[0].length;
+    if (cut < max / 2) {
+      const space = /\s+/g;
+      cut = -1;
+      for (let m = space.exec(window); m; m = space.exec(window)) cut = m.index + m[0].length;
+    }
+    if (cut <= 0) {
+      cut = max;
+      const last = window.charCodeAt(max - 1);
+      if (last >= 0xd800 && last <= 0xdbff) cut -= 1; // do not split a surrogate pair
+    }
+    chunks.push(rest.slice(0, cut));
+    rest = rest.slice(cut);
+  }
+  if (rest.length > 0 || chunks.length === 0) chunks.push(rest);
+  return chunks;
+}
+
 const BASE64 = /^[A-Za-z0-9+/]*={0,2}$/;
 
 export type ServerEvent =
@@ -27,16 +63,28 @@ export type ServerEvent =
   | { kind: "done"; audioDurationMs: number | null }
   /** A frame the protocol promises but whose contents cannot be trusted (bad base64, odd sample count). */
   | { kind: "malformed"; reason: string }
-  | { kind: "error"; code: number | string; message: string }
+  | ({ kind: "error" } & ProviderErrorFrame)
   | { kind: "ignored" };
 
-export function parseErrorFrame(raw: string): { code: number | string; message: string } | null {
+/** What an `Error` frame carries. The service documents `error_type`, `retryable` and `retry_after_seconds` alongside the text. */
+export type ProviderErrorFrame = {
+  code: number | string;
+  message: string;
+  errorType: string | null;
+  retryable: boolean | null;
+  retryAfterSec: number | null;
+};
+
+export function parseErrorFrame(raw: string): ProviderErrorFrame | null {
   try {
-    const msg = JSON.parse(raw) as { type?: unknown; error_code?: unknown; error?: unknown };
+    const msg = JSON.parse(raw) as Record<string, unknown>;
     if (msg.type === "Error") {
       return {
         code: typeof msg.error_code === "number" || typeof msg.error_code === "string" ? msg.error_code : "unknown",
         message: typeof msg.error === "string" ? msg.error : "Provider error",
+        errorType: typeof msg.error_type === "string" ? msg.error_type : null,
+        retryable: typeof msg.retryable === "boolean" ? msg.retryable : null,
+        retryAfterSec: typeof msg.retry_after_seconds === "number" && msg.retry_after_seconds >= 0 ? msg.retry_after_seconds : null,
       };
     }
   } catch {
@@ -66,7 +114,7 @@ export const protocol: ProtocolSpec = {
     return url.toString();
   },
 
-  requestFrames: ({ text }) => [JSON.stringify({ type: "Generate", text }), JSON.stringify({ type: "Flush" })],
+  requestFrames: ({ text }) => [...chunkForGenerate(text).map((chunk) => JSON.stringify({ type: "Generate", text: chunk })), JSON.stringify({ type: "Flush" })],
 
   parseFrame(data, isBinary) {
     if (isBinary) return { kind: "ignored" };
