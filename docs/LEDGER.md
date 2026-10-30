@@ -22,11 +22,14 @@
 
 - Production configuration checker, hosted-production guards, locked and production-only migrations, TLS and timeouts for the hosted database, release runbook, deployment verification and live-journey tools (the last rehearsed locally only)
 
+- Live-verified on 30 Oct 2026: AssemblyAI synthesis (both voices, repeats, a long multi-frame notice, timeout, rate-limit handling), Resend acceptance from the verified domain
+- Global daily cap on sign-in emails to protect a shared email account's quota
+
 ## Implemented but unverified
 - S3 storage driver (no bucket available)
 - Hosted Postgres path (`postgres-js` + `db:migrate`); tests use PGlite
 - AssemblyAI adapter: transport and WAV assembly ran once against the real service on 30 Oct 2026 (`npm run tts:smoke`, 2 syntheses, sub-3 s each). Failure handling (bad base64, dropped stream, short audio, auth, rate limit, timeout, abort) is covered against a local protocol server, not the real service. `aai-kyla`, the EU endpoint, text-length and rate limits, repeatability and pronunciation are unchecked
-- Supabase Storage driver (mocked HTTP only), S3 (not run), Resend (mocked HTTP only)
+- Supabase Storage driver (mocked HTTP only), S3 (not run), receipt of Resend mail in a real inbox
 - Hosted Postgres: `postgres-js` over the wire protocol against PGlite behind a socket; never against real Postgres or Supabase
 
 ## Blocked by external dependency
