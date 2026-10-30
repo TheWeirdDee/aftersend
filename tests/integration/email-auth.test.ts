@@ -123,6 +123,30 @@ describe("requesting a code", () => {
     await expect(auth.verifyCode({ email: address, code: lastCode(address)!, sessionUserId: null, ip: freshIp() })).resolves.toMatchObject({ created: false });
   });
 
+  it("caps the total number of sign-in emails per day, so a shared email account's quota cannot be used up", async () => {
+    const db = await getDb();
+    const used = async () => (await db.select().from(schema.rateLimits).where(eq(schema.rateLimits.key, "auth-email-global")))[0]?.count ?? 0;
+    const before = await used();
+    process.env.AUTH_EMAILS_PER_DAY = String(before + 2);
+    resetEnvCache();
+    try {
+      const a = newAddress();
+      await auth.requestCode({ email: a, linkUserId: null, ip: freshIp() });
+      // A request inside the resend cooldown sends nothing, so it must not use up the allowance.
+      await auth.requestCode({ email: a, linkUserId: null, ip: freshIp() });
+      expect(await used()).toBe(before + 1);
+      await auth.requestCode({ email: newAddress(), linkUserId: null, ip: freshIp() });
+      const blocked = newAddress();
+      await expect(auth.requestCode({ email: blocked, linkUserId: null, ip: freshIp() })).rejects.toMatchObject({ code: "rate_limited" });
+      expect(mailTo(blocked)).toHaveLength(0);
+      // People who already hold a code can still finish signing in: the cap stops new emails, not verification.
+      await expect(auth.verifyCode({ email: a, code: lastCode(a)!, sessionUserId: null, ip: freshIp() })).resolves.toMatchObject({ created: true });
+    } finally {
+      process.env.AUTH_EMAILS_PER_DAY = "100000";
+      resetEnvCache();
+    }
+  });
+
   it("limits requests per address and per IP", async () => {
     const address = newAddress();
     for (let i = 0; i < 5; i++) {
