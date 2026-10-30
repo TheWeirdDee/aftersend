@@ -2,6 +2,7 @@ import "server-only";
 import { and, eq, isNull, lt, ne, sql } from "drizzle-orm";
 import { getDb } from "../db/client";
 import { audioAssets, noticeRevisions, rateLimits, sessions } from "../db/schema";
+import { purgeChallenges } from "../auth/email-auth";
 import { objectStore } from "../storage/audio";
 
 const STAGING_TTL_MS = 24 * 3600_000;
@@ -105,5 +106,6 @@ export async function runCleanup(now = new Date()) {
     staging: await cleanupStagingAudio(now),
     abandonedPublished: await cleanupAbandonedPublished(now),
     expired: await cleanupExpiredRecords(now),
+    challenges: await purgeChallenges(now),
   };
 }
