@@ -87,5 +87,6 @@ describe("restart persistence", () => {
       .filter((m) => m.to === address)
       .at(-1)!;
     expect((await auth.verifyCode({ email: address, code: /code is (\d{6})/.exec(again.text)![1]!, sessionUserId: null, ip: "10.8.8.4" })).userId).toBe(account.userId);
-  });
+    // Takes about 12 s alone; once timed out at 30 s while the other integration files held every core.
+  }, 90_000);
 });
