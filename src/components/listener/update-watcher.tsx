@@ -27,10 +27,14 @@ export function UpdateWatcher({ token, revisionId }: { token: string; revisionId
     };
     const t = setInterval(check, 30000);
     document.addEventListener("visibilitychange", check);
+    // A page restored from the back/forward cache never reloaded, so ask again as soon as it is shown.
+    window.addEventListener("pageshow", check);
+    void check();
     return () => {
       stop = true;
       clearInterval(t);
       document.removeEventListener("visibilitychange", check);
+      window.removeEventListener("pageshow", check);
     };
   }, [token, revisionId]);
 
