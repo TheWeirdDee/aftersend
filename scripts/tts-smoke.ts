@@ -36,6 +36,33 @@ const runs = Number(value("--runs") ?? 1) || 1;
 const maxRequests = Number(value("--max-requests") ?? 14) || 14;
 let requests = 0;
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// The free plan allows 5 new sessions a minute. Space requests so a normal run never trips it, and if it does, wait
+// exactly as long as the service says (once) instead of recording a failure that is not about speech quality.
+const paceMs = Number(value("--pace-ms") ?? 13000);
+let lastStart = 0;
+async function pace() {
+  const wait = lastStart + paceMs - Date.now();
+  if (lastStart && wait > 0) await sleep(wait);
+  lastStart = Date.now();
+}
+async function patiently<T>(run: () => Promise<T>, onWait: (sec: number) => void): Promise<T> {
+  try {
+    return await run();
+  } catch (err) {
+    if (err instanceof SpeechProviderError && err.kind === "rate_limited") {
+      const sec = (err.retryAfterSec ?? 30) + 1;
+      console.log(`(rate limited by the service; waiting ${sec} s as it asked)`);
+      await sleep(sec * 1000);
+      onWait(sec);
+      lastStart = Date.now();
+      return await run();
+    }
+    throw err;
+  }
+}
+
 const median = (xs: number[]) => (xs.length ? [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)]! : null);
 const sha = (b: Uint8Array) => createHash("sha256").update(b).digest("hex");
 
@@ -73,6 +100,7 @@ async function badKeyProbe() {
 
 async function timeoutProbe(provider: AssemblyAiTtsProvider, voice: string) {
   requests++;
+  await pace();
   const started = Date.now();
   try {
     await provider.synthesize({
@@ -133,14 +161,20 @@ async function main() {
     for (let i = 1; i <= runs; i++) {
       for (const input of inputs) {
         requests++;
+        await pace();
         const started = Date.now();
+        let waitedSec = 0;
         try {
-          const r = await provider.synthesize({
-            text: input.text,
-            voiceId: voice,
-            outputFormat: "wav",
-            requestContext: { revisionId: "smoke", attemptId: `smoke-${voice}-${i}-${input.label}` },
-          });
+          const r = await patiently(
+            () =>
+              provider.synthesize({
+                text: input.text,
+                voiceId: voice,
+                outputFormat: "wav",
+                requestContext: { revisionId: "smoke", attemptId: `smoke-${voice}-${i}-${input.label}` },
+              }),
+            (s) => (waitedSec += s),
+          );
           const check = inspectAudio(r.audio);
           const digest = sha(r.audio);
           const file = `evidence/raw/audio/${voice}-${input.label}-run${i}-${digest.slice(0, 8)}.wav`;
@@ -157,8 +191,10 @@ async function main() {
             decodedDurationMs: decoded,
             providerReportedDurationMs: r.reportedDurationMs ?? null,
             durationDeltaMs: decoded !== null && r.reportedDurationMs != null ? decoded - r.reportedDurationMs : null,
-            timeToFirstAudioMs: r.firstAudioAt ? r.firstAudioAt.getTime() - started : null,
-            totalMs: r.completedAt.getTime() - started,
+            timeToFirstAudioMs: r.firstAudioAt ? r.firstAudioAt.getTime() - started - waitedSec * 1000 : null,
+            // Time spent waiting out the provider's rate-limit window is reported separately, not as latency.
+            waitedForRateLimitSec: waitedSec,
+            totalMs: r.completedAt.getTime() - started - waitedSec * 1000,
             providerRequestId: r.providerRequestId,
             model: r.providerModel,
             sha256: digest,
