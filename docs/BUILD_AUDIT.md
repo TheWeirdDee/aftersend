@@ -112,3 +112,16 @@ Evidence key: **U** unit test, **I** integration test (PGlite + local store), **
 | Production infrastructure | Configuration, migrations, scripts, readiness (now including email and auth) and exact setup steps are prepared (`docs/DEPLOYMENT.md`, `scripts/verify-deployment.ts`). **No external account was touched; nothing is provisioned or deployed.** |
 | Hosted-database path | Exercised with `postgres-js` over the Postgres wire protocol against PGlite behind a socket (migrations, publish, correction, withdrawal, simultaneous approvals, email sign-in). Not real Postgres, not Supabase. |
 | Restart persistence | Tested for the local database and object store. |
+
+
+## Fourth pass, 30 October 2026: release preparation
+
+Ten defects in the deployment path were found and fixed (full table with tests in `RESULTS.md`): localhost fallback in page metadata, preview builds able to migrate production, a production build that could skip a missing database, unlocked migrations through the transaction pooler, no TLS or timeouts on the hosted database connection, test doubles and insecure cookies guarded only by opt-in variables, scripts ignoring `.env.local`, a cron route without a duration limit, and two bugs in the new tooling. Added: `check:env`, `verify:deploy`, `verify:live`, `docs/RELEASE_RUNBOOK.md`.
+
+| Item | Status |
+|---|---|
+| Configuration checker (`npm run check:env`) | Done; covered by 23 unit tests. Two of its rules (test switches, local storage) were broken on purpose and caught; the others are covered by tests but were not individually mutated. |
+| Hosted-production guards | Done; refuse test speech, file mailbox and non-Secure cookies on Vercel production. |
+| Migration safety | Done except the lock itself, which cannot be demonstrated without a real Postgres. |
+| Live verification (AssemblyAI, Resend, Supabase, Vercel) | **Blocked: no credentials, no deployment authorisation.** Tooling ready and rehearsed. |
+| Human listening review | **Not done.** |
