@@ -1,0 +1,25 @@
+PASS  liveness: /api/health is 200  (status 200)
+PASS  readiness: /api/ready is 200  (status 200)
+PASS  readiness.database  (ok)
+PASS  readiness.speech  (ok (assemblyai))
+PASS  readiness.storage  (ok)
+PASS  readiness.email  (ok (resend))
+PASS  readiness.auth  (ok)
+PASS  readiness.config  (ok)
+PASS  speech is the real AssemblyAI provider  (ok (assemblyai))
+PASS  email is the real provider, not the test outbox  (ok (resend))
+PASS  security headers on /
+PASS  the listener route 404s for an unknown notice with no-store
+PASS  sign-in refuses a request without a same-origin header (CSRF)  (status 403)
+PASS  workspace API refuses anonymous reads
+PASS  cron cleanup refuses anonymous calls
+PASS  no session cookie is set on a plain GET
+PASS  the audio bucket exists  (status 200)
+PASS  the audio bucket is PRIVATE  (public=false)
+PASS  server key can write  (status 200)
+PASS  probe object is not readable anonymously at object/public  (status 400)
+PASS  probe object is not readable anonymously at object/aftersend-audio  (status 400)
+PASS  probe object is not readable anonymously at object/authenticated  (status 400)
+PASS  server key can read it back  (status 200)
+
+23/23 checks passed against https://aftersend-sigma.vercel.app
