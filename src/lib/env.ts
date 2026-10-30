@@ -1,5 +1,6 @@
 import "server-only";
 import { z } from "zod";
+import { DEFAULT_ENDPOINT } from "./speech/assemblyai-protocol";
 
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -20,11 +21,14 @@ const schema = z.object({
   // The test provider produces a labelled tone, never speech. It must be opted into explicitly.
   AFTERSEND_ALLOW_TEST_PROVIDER: z.enum(["0", "1"]).default("0"),
   ASSEMBLYAI_API_KEY: z.string().optional(),
-  ASSEMBLYAI_TTS_ENDPOINT: z.string().default("wss://streaming-tts.assemblyai.com/v1/ws"),
+  ASSEMBLYAI_TTS_ENDPOINT: z.string().default(DEFAULT_ENDPOINT),
   ASSEMBLYAI_TTS_MODEL: z.string().optional(),
-  // Comma-separated voice ids, populated only from the verified voice catalogue.
+  // Comma-separated voice ids; defaults to the voices named in AssemblyAI's docs.
   ASSEMBLYAI_TTS_VOICES: z.string().optional(),
-  ASSEMBLYAI_TTS_TIMEOUT_MS: z.coerce.number().int().positive().default(45000),
+  // Ceiling for one synthesis attempt.
+  ASSEMBLYAI_TTS_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
+  // Ceiling for a whole generate request (all attempts, backoff and storage). Keep it under the route's maxDuration.
+  SYNTHESIS_DEADLINE_MS: z.coerce.number().int().min(1000).default(50000),
   SYNTHESIS_LIMIT_PER_HOUR: z.coerce.number().int().positive().default(30),
   DEMO_WORKSPACES_PER_IP_PER_HOUR: z.coerce.number().int().positive().default(10),
 });
@@ -34,7 +38,8 @@ export type Env = z.infer<typeof schema>;
 let cached: Env | null = null;
 
 export function env(): Env {
-  if (!cached) cached = schema.parse(process.env);
+  // A blank line such as `APP_URL=` in a copied .env.example means "unset", not an empty value.
+  if (!cached) cached = schema.parse(Object.fromEntries(Object.entries(process.env).filter(([, v]) => v !== "")));
   return cached;
 }
 
