@@ -17,7 +17,7 @@ const flag = (name: string) => {
   return i >= 0 ? (args[i + 1] ?? "") : null;
 };
 
-const endpoint = process.env.ASSEMBLYAI_TTS_ENDPOINT ?? "wss://streaming-tts.assemblyai.com/v1/ws";
+const endpoint = process.env.ASSEMBLYAI_TTS_ENDPOINT ?? "wss://tts.us.assemblyai.com/v1/ws";
 const key = process.env.ASSEMBLYAI_API_KEY;
 const noKey = args.includes("--no-key");
 if (!key && !noKey) {
