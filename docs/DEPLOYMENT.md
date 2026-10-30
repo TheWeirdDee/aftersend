@@ -33,8 +33,9 @@ Migrations run **in the build, never at application start**. `vercel-build` runs
 ## 2. Resend: email
 
 1. https://resend.com/signup, then https://resend.com/api-keys → **Create API Key** (permission *Sending access*). This is `RESEND_API_KEY`.
-2. **Sender.** Without a domain, Resend only delivers from `onboarding@resend.dev` and only to the address that owns the Resend account. That is enough to test your own sign-in: set `EMAIL_FROM` to `AfterSend <onboarding@resend.dev>` and sign in with your own email. For anyone else to receive codes, add a domain at https://resend.com/domains, add the DNS records it shows, wait for **Verified**, and set `EMAIL_FROM` to `AfterSend <login@your-domain>`.
-3. Codes expire in 10 minutes and are limited to 5 requests per address per hour, so the free sending quota is not a practical constraint, but check the plan's daily limit in the Resend dashboard.
+2. **Sender (done for this project).** The domain `micromindapp.xyz` is verified in Resend and a key named `aftersend-production` with *Sending access* exists. Use `EMAIL_FROM="AfterSend <login@micromindapp.xyz>"`: recipients see the display name **AfterSend**; the address part necessarily shows the verified domain, so a mail client that shows the full address will show `micromindapp.xyz`. No mailbox needs to exist for `login@`; Resend sends for the whole verified domain. If replies to that address should go somewhere, that is a separate Resend/DNS decision; the app sends no `Reply-To`.
+3. **Sharing the Resend account with other applications (Micromind and so on).** AfterSend only ever calls `POST /emails` with its own key, from its own sender address. It creates no domains, audiences, contacts, webhooks or API keys, and never lists or reads other mail, so it cannot change another app's configuration. What *is* shared is the **account quota** (free plan: 100 emails a day, 3 000 a month, counted per UTC day across every application and domain) and Resend's request-rate limit. To stop AfterSend using up everyone's allowance, the app caps its own sign-in emails at `AUTH_EMAILS_PER_DAY` (default **60** per UTC day, all addresses together) on top of 5 per address per hour and 20 per IP per hour; when the cap is reached new codes are refused with a "try again later" message while people who already hold a code can still sign in. Lower it if the other applications need more of the 100. Watch the day's usage at https://resend.com/emails.
+4. **Check delivery with the real provider** (no person's mailbox involved): `npm run email:probe` sends one message through AfterSend's own sender to Resend's test address `delivered@resend.dev`. To see the message and the sender name yourself, run `npm run email:probe -- --to <your own mailbox>` and look at the From line.
 
 ## 3. Secrets you generate yourself
 
@@ -65,8 +66,9 @@ node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"      # 
 | `SPEECH_PROVIDER` | `assemblyai` |
 | `ASSEMBLYAI_API_KEY` | the **new** key from §0 |
 | `EMAIL_DRIVER` | `resend` |
-| `RESEND_API_KEY` | from §2.1 |
-| `EMAIL_FROM` | from §2.2 |
+| `RESEND_API_KEY` | the full secret of the `aftersend-production` key (shown once, when it was created) |
+| `EMAIL_FROM` | `AfterSend <login@micromindapp.xyz>` |
+| `AUTH_EMAILS_PER_DAY` | optional; default `60` (see §2.3) |
 | `AUTH_SECRET` | from §3 |
 | `CRON_SECRET` | from §3 |
 
