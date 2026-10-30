@@ -7,5 +7,7 @@ export default defineConfig({
     include: ["tests/unit/**/*.test.ts", "tests/integration/**/*.test.ts"],
     environment: "node",
     testTimeout: 30000,
+    // Each integration file boots its own embedded Postgres and runs the migrations; several at once is slow.
+    hookTimeout: 60000,
   },
 });
