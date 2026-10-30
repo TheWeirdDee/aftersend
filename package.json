@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1152.0",
-    "@electric-sql/pglite": "^0.5.10",
+    "@electric-sql/pglite": "^0.5.13",
     "diff": "^9.0.0",
     "drizzle-orm": "^0.45.4",
     "geist": "^1.8.1",
@@ -39,6 +39,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
+    "@electric-sql/pglite-socket": "^0.2.16",
     "@playwright/test": "^1.56.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.6.5",
