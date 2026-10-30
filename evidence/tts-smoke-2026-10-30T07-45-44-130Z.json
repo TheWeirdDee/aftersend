@@ -1,0 +1,43 @@
+{
+  "endpoint": "wss://tts.us.assemblyai.com/v1/ws",
+  "inputs": [
+    {
+      "label": "original",
+      "text": "Sample School Schedule Notice. Dear parents and guardians, Classes will end early on Friday, 24 October 2026, for a staff training day. Pickup is at three p.m. at the main gate. Please bring your pickup card. Thank you for your support."
+    },
+    {
+      "label": "corrected",
+      "text": "Sample School Schedule Notice. Update: Pickup is at four p.m. at the main gate. Dear parents and guardians, Classes will end early on Friday, 24 October 2026, for a staff training day. Pickup is at four p.m. at the main gate. Please bring your pickup card. Thank you for your support."
+    }
+  ],
+  "results": [
+    {
+      "run": 1,
+      "label": "original",
+      "ok": true,
+      "file": "evidence/raw/audio/original-run1-d023fce7.wav",
+      "bytes": 756524,
+      "decodedDurationMs": 15760,
+      "timeToFirstAudioMs": 1142,
+      "totalMs": 2554,
+      "providerRequestId": "34f4bcd6-95ee-4be2-ab58-5dfcc60c3e9a",
+      "model": "assemblyai-tts-1",
+      "voice": "aai-jane",
+      "sha256": "d023fce78b716b5750f865e933392270ace00efba49ce857136fbc38d965ee9a"
+    },
+    {
+      "run": 1,
+      "label": "corrected",
+      "ok": true,
+      "file": "evidence/raw/audio/corrected-run1-9459ddcd.wav",
+      "bytes": 910124,
+      "decodedDurationMs": 18960,
+      "timeToFirstAudioMs": 957,
+      "totalMs": 2655,
+      "providerRequestId": "a795701b-b587-4e9e-87c8-2e228cb0d775",
+      "model": "assemblyai-tts-1",
+      "voice": "aai-jane",
+      "sha256": "9459ddcdc102fe9362bcd79fd163491a2b50449b6f6c4d7e4570abb6111e63b7"
+    }
+  ]
+}
