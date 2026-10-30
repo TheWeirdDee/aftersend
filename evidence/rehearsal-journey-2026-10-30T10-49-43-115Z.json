@@ -1,0 +1,101 @@
+{
+  "mode": "rehearsal (test doubles; NOT live evidence)",
+  "at": "2026-10-30T10:49:43.114Z",
+  "target": "http://localhost:3299",
+  "account": "186ccd67639c",
+  "steps": [
+    {
+      "n": 1,
+      "name": "target is live-capable (real speech and real email), unless rehearsing",
+      "ok": true,
+      "detail": "rehearsal: speech=ok (test), email=ok (file)",
+      "ms": 138
+    },
+    {
+      "n": 2,
+      "name": "1. sign up with email (code delivered to a real mailbox)",
+      "ok": true,
+      "detail": "",
+      "ms": 118
+    },
+    {
+      "n": 3,
+      "name": "2-3. create a notice and start from the first configured voice",
+      "ok": true,
+      "detail": "voice test-tone",
+      "ms": 35
+    },
+    {
+      "n": 4,
+      "name": "4. generate audio (real synthesis in live mode)",
+      "ok": true,
+      "detail": "117 ms, 103724 bytes, provider test, 2160 ms of audio",
+      "ms": 117
+    },
+    {
+      "n": 5,
+      "name": "5-6. approve and publish; obtain the permanent link",
+      "ok": true,
+      "detail": "published as version 1",
+      "ms": 97
+    },
+    {
+      "n": 6,
+      "name": "7. open the link anonymously; audio is revalidated, not cached",
+      "ok": true,
+      "detail": "103724 bytes",
+      "ms": 375
+    },
+    {
+      "n": 7,
+      "name": "8-10. correct 3 PM to 4 PM, regenerate, republish; the same link serves the correction",
+      "ok": true,
+      "detail": "version 2 at the unchanged link",
+      "ms": 160
+    },
+    {
+      "n": 8,
+      "name": "11a. superseded audio is refused by the application (even with its old ETag)",
+      "ok": true,
+      "detail": "",
+      "ms": 24
+    },
+    {
+      "n": 9,
+      "name": "12-13. withdraw; every public route stops serving the notice",
+      "ok": true,
+      "detail": "",
+      "ms": 50
+    },
+    {
+      "n": 10,
+      "name": "14. lose the browser session",
+      "ok": true,
+      "detail": "",
+      "ms": 2
+    },
+    {
+      "n": 11,
+      "name": "15. recover the workspace with the verified email",
+      "ok": true,
+      "detail": "original notice and both versions found",
+      "ms": 55
+    },
+    {
+      "n": 12,
+      "name": "16. another account cannot read or change the first account's notice",
+      "ok": true,
+      "detail": "",
+      "ms": 68
+    },
+    {
+      "n": 13,
+      "name": "17. sign out everywhere ends the recovered session",
+      "ok": true,
+      "detail": "",
+      "ms": 21
+    }
+  ],
+  "failed": 0,
+  "note": "The listening gate is a browser attestation; this run approved through the API and does not show that anyone listened. Pronunciation is judged only by docs/LISTENING_REVIEW.md."
+}
