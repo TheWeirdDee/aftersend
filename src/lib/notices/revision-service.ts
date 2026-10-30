@@ -20,12 +20,49 @@ import { speechProvider } from "../speech";
 import { SpeechProviderError, type SpeechProvider } from "../speech/provider";
 import { objectStore, publishedKey, stagingKey } from "../storage/audio";
 import { factChanges } from "./diff";
-import { detectCriticalFacts, hasAmbiguousFacts } from "./facts";
+import { findAmbiguousSpokenFact } from "./facts";
 import { isValidTimezone } from "./validation";
 import { toSpeechText } from "./normalize-speech";
 
 const EDITABLE: NoticeRevision["status"][] = ["draft", "failed", "preview_ready"];
 const MAX_RETRIES = 2;
+/** Time reserved after the provider returns for validation, storage and the database commit: 10% of the deadline, at most 5 s. */
+const postSynthesisReserveMs = () => Math.min(5_000, env().SYNTHESIS_DEADLINE_MS * 0.1);
+/** An attempt that cannot get at least this long is not started: 10% of the deadline, at most 5 s. */
+const minAttemptMs = () => Math.min(5_000, env().SYNTHESIS_DEADLINE_MS * 0.1);
+/** How long a synthesizing claim is trusted after the request deadline before another request may take it over. */
+export const CLAIM_GRACE_MS = 15_000;
+
+/** After this long a 'synthesizing' revision is presumed abandoned and can be generated again. */
+export function synthesisStaleAfterMs() {
+  return env().SYNTHESIS_DEADLINE_MS + CLAIM_GRACE_MS;
+}
+
+function isUniqueViolation(err: unknown): boolean {
+  for (let e = err as { code?: unknown; cause?: unknown } | undefined, i = 0; e && i < 4; e = e.cause as typeof e, i++) {
+    if (e.code === "23505") return true;
+  }
+  return false;
+}
+
+function staleVersion(currentVersion: number) {
+  return new AppError("conflict", "This draft was changed in another tab or session. Load the latest version before saving.", false, {
+    reason: "stale_version",
+    currentVersion,
+  });
+}
+
+function assertSpokenFactsClear(fields: { title: string; text: string; updatePreface?: string | null }) {
+  const hit = findAmbiguousSpokenFact(fields);
+  if (!hit) return;
+  const where = hit.field === "title" ? "the title" : hit.field === "updatePreface" ? "the update note" : "the notice text";
+  throw new AppError(
+    "validation_failed",
+    `Resolve “${hit.fact.value}” in ${where} before continuing. ${hit.fact.note ?? ""}`.trim(),
+    false,
+    { field: hit.field },
+  );
+}
 
 export function synthesisKeyFor(provider: string, modelId: string | null, voiceId: string, speechText: string) {
   return sha256Hex(JSON.stringify([provider, modelId ?? "", voiceId, speechText]));
@@ -58,8 +95,6 @@ function assertVoiceAvailable(provider: SpeechProvider, voiceId: string) {
     throw new AppError("validation_failed", "That voice is not available.");
   }
 }
-
-// ── Create ──────────────────────────────────────────────────────────────────────────────────────────
 
 export async function createNotice(
   ownerId: string,
@@ -103,7 +138,7 @@ export async function createNotice(
 export async function createRevision(
   ownerId: string,
   noticeId: string,
-  input: { title?: string; text: string; voiceId?: string; updatePreface?: string | null },
+  input: { title?: string; text: string; voiceId?: string; updatePreface?: string | null; clientToken?: string },
 ) {
   const db = await getDb();
   const notice = await ownedNotice(db, ownerId, noticeId);
@@ -113,29 +148,49 @@ export async function createRevision(
   if (notice.currentRevisionId) {
     base = (await db.select().from(noticeRevisions).where(eq(noticeRevisions.id, notice.currentRevisionId)).limit(1))[0] ?? null;
   }
+  const diffBase = () =>
+    base ? { revisionId: base.id, revisionNumber: base.revisionNumber, displayText: base.displayText } : null;
+  const existingByToken = async () =>
+    input.clientToken
+      ? (
+          await db
+            .select({ id: noticeRevisions.id, version: noticeRevisions.version })
+            .from(noticeRevisions)
+            .where(and(eq(noticeRevisions.noticeId, noticeId), eq(noticeRevisions.clientToken, input.clientToken)))
+            .limit(1)
+        )[0]
+      : undefined;
+  // A retried create (lost response) returns the draft it already made.
+  const already = await existingByToken();
+  if (already) return { revisionId: already.id, version: already.version, diffBase: diffBase() };
   const title = input.title ?? base?.title ?? notice.title;
   const voiceId = input.voiceId ?? base?.voiceId ?? provider.listVoices()[0]?.id ?? "";
   assertVoiceAvailable(provider, voiceId);
   const speechText = toSpeechText(title, input.text, input.updatePreface);
   const id = newId("rev");
-  await db.insert(noticeRevisions).values({
-    id,
-    noticeId,
-    baseRevisionId: notice.currentRevisionId,
-    title,
-    displayText: input.text,
-    speechText,
-    updatePreface: input.updatePreface ?? null,
-    updateSummary: base ? summarize(base.displayText, input.text) : null,
-    voiceId,
-    provider: provider.kind,
-    modelId: provider.modelId,
-    synthesisKey: synthesisKeyFor(provider.kind, provider.modelId, voiceId, speechText),
-  });
-  return {
-    revisionId: id,
-    diffBase: base ? { revisionId: base.id, revisionNumber: base.revisionNumber, displayText: base.displayText } : null,
-  };
+  try {
+    await db.insert(noticeRevisions).values({
+      id,
+      noticeId,
+      baseRevisionId: notice.currentRevisionId,
+      title,
+      displayText: input.text,
+      speechText,
+      updatePreface: input.updatePreface ?? null,
+      updateSummary: base ? summarize(base.displayText, input.text) : null,
+      voiceId,
+      provider: provider.kind,
+      modelId: provider.modelId,
+      synthesisKey: synthesisKeyFor(provider.kind, provider.modelId, voiceId, speechText),
+      clientToken: input.clientToken ?? null,
+    });
+  } catch (err) {
+    // Two requests carrying the same token raced: the loser returns the winner's draft.
+    const winner = isUniqueViolation(err) ? await existingByToken() : undefined;
+    if (!winner) throw err;
+    return { revisionId: winner.id, version: winner.version, diffBase: diffBase() };
+  }
+  return { revisionId: id, version: 1, diffBase: diffBase() };
 }
 
 function summarize(before: string, after: string): UpdateSummary[] {
@@ -155,13 +210,16 @@ export async function updateDraft(
     updatePreface?: string | null;
     confirmedCriticalFacts?: boolean;
     sourceUrl?: string | null;
+    expectedVersion?: number;
   },
 ) {
   const db = await getDb();
   const { revision, notice } = await ownedRevision(db, ownerId, revisionId);
+  if (notice.state === "withdrawn") throw new AppError("notice_withdrawn", "This notice has been withdrawn.");
   if (!EDITABLE.includes(revision.status)) {
-    throw new AppError("conflict", "This revision can no longer be edited.");
+    throw new AppError("conflict", "This revision can no longer be edited.", false, { reason: "locked", status: revision.status });
   }
+  if (input.expectedVersion !== undefined && input.expectedVersion !== revision.version) throw staleVersion(revision.version);
   const provider = speechProvider();
   const title = input.title ?? revision.title;
   const text = input.text ?? revision.displayText;
@@ -194,15 +252,27 @@ export async function updateDraft(
         synthesisKey,
         confirmedCriticalFacts: textChanged ? false : (input.confirmedCriticalFacts ?? revision.confirmedCriticalFacts),
         ...(contentChanged ? { status: "draft" as const, audioAssetId: null, generatedAt: null, requestId: null } : {}),
+        version: revision.version + 1,
         updatedAt: new Date(),
       })
-      .where(and(eq(noticeRevisions.id, revisionId), inArray(noticeRevisions.status, EDITABLE)))
+      // Compare-and-swap on the version read above: a concurrent save makes this match nothing.
+      .where(
+        and(
+          eq(noticeRevisions.id, revisionId),
+          inArray(noticeRevisions.status, EDITABLE),
+          eq(noticeRevisions.version, revision.version),
+        ),
+      )
       .returning({ id: noticeRevisions.id });
-    if (res.length === 0) throw new AppError("conflict", "This revision changed while you were editing. Reload and try again.");
+    if (res.length === 0) {
+      const now = (await tx.select({ version: noticeRevisions.version }).from(noticeRevisions).where(eq(noticeRevisions.id, revisionId)))[0];
+      throw staleVersion(now?.version ?? revision.version);
+    }
     if (input.sourceUrl !== undefined && notice.state === "draft") {
       await tx.update(notices).set({ sourceUrl: input.sourceUrl, updatedAt: new Date() }).where(eq(notices.id, notice.id));
     }
   });
+  return { version: revision.version + 1, status: contentChanged ? ("draft" as const) : revision.status };
 }
 
 export async function discardDraft(ownerId: string, revisionId: string) {
@@ -215,8 +285,6 @@ export async function discardDraft(ownerId: string, revisionId: string) {
     .set({ status: "discarded", updatedAt: new Date() })
     .where(and(eq(noticeRevisions.id, revisionId), inArray(noticeRevisions.status, EDITABLE)));
 }
-
-// ── Synthesis ───────────────────────────────────────────────────────────────────────────────────────
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -231,18 +299,27 @@ export async function generatePreview(ownerId: string, revisionId: string) {
   if (!["draft", "failed", "synthesizing"].includes(revision.status)) {
     throw new AppError("conflict", "This revision is not awaiting audio.");
   }
-  const ambiguous = detectCriticalFacts(revision.displayText).find((f) => f.ambiguous);
-  if (ambiguous) {
-    throw new AppError("validation_failed", `Resolve “${ambiguous.value}” before generating audio. ${ambiguous.note ?? ""}`.trim());
+  if (notice.state === "withdrawn") throw new AppError("notice_withdrawn", "This notice has been withdrawn.");
+  // Do not spend provider credits on a draft that can no longer be published.
+  if ((revision.baseRevisionId ?? null) !== (notice.currentRevisionId ?? null)) {
+    throw new AppError(
+      "conflict",
+      "A newer version was published while you were editing. Review the latest version and start a new correction.",
+      false,
+      { reason: "superseded" },
+    );
   }
+  assertSpokenFactsClear({ title: revision.title, text: revision.displayText, updatePreface: revision.updatePreface });
   const configured = provider.isConfigured();
   if (!configured.ok) throw new AppError("provider_not_configured", `Speech generation is unavailable: ${configured.reason}`);
 
-  // Claim the revision. A stale 'synthesizing' claim (worker died) can be re-claimed after the timeout.
-  const staleBefore = new Date(Date.now() - env().ASSEMBLYAI_TTS_TIMEOUT_MS * (MAX_RETRIES + 1) - 15000);
+  // Claim the revision under a fresh attempt id. Only the holder of that id may finish or fail the synthesis,
+  // so a stalled worker that wakes up after its claim was taken over cannot touch the replacement's result.
+  const attemptId = newId("att");
+  const staleBefore = new Date(Date.now() - synthesisStaleAfterMs());
   const claimed = await db
     .update(noticeRevisions)
-    .set({ status: "synthesizing", updatedAt: new Date() })
+    .set({ status: "synthesizing", synthesisClaim: attemptId, updatedAt: new Date() })
     .where(
       and(
         eq(noticeRevisions.id, revisionId),
@@ -258,7 +335,6 @@ export async function generatePreview(ownerId: string, revisionId: string) {
     throw new AppError("synthesis_in_progress", "Audio is already being generated for this revision.", true);
   }
 
-  const attemptId = newId("att");
   await db.insert(synthesisAttempts).values({
     id: attemptId,
     revisionId,
@@ -269,22 +345,37 @@ export async function generatePreview(ownerId: string, revisionId: string) {
     outcome: "in_progress",
   });
 
+  // One deadline covers every attempt, backoff and the storage work, so the request can always record
+  // its outcome before the platform ends it. Each attempt gets what is left, minus the post-work reserve.
+  const deadline = Date.now() + env().SYNTHESIS_DEADLINE_MS;
+  const remaining = () => deadline - Date.now();
   let retries = 0;
   try {
     let result;
     for (;;) {
+      const available = remaining() - postSynthesisReserveMs();
+      if (available < minAttemptMs()) {
+        throw new SpeechProviderError("timeout", "Audio generation ran out of time. Try again, or shorten the notice.", false);
+      }
+      const attemptBudget = Math.min(env().ASSEMBLYAI_TTS_TIMEOUT_MS, available);
       try {
         result = await provider.synthesize({
           text: revision.speechText,
           voiceId: revision.voiceId,
           outputFormat: "wav",
-          requestContext: { revisionId, attemptId },
+          requestContext: { revisionId, attemptId, timeoutMs: attemptBudget },
         });
         break;
       } catch (err) {
-        if (err instanceof SpeechProviderError && err.retryable && retries < MAX_RETRIES) {
+        const backoff = (err instanceof SpeechProviderError && err.kind === "rate_limited" ? 2000 : 500) * 2 ** retries;
+        if (
+          err instanceof SpeechProviderError &&
+          err.retryable &&
+          retries < MAX_RETRIES &&
+          remaining() - backoff - postSynthesisReserveMs() >= minAttemptMs()
+        ) {
           retries++;
-          await sleep((err.kind === "rate_limited" ? 2000 : 500) * 2 ** (retries - 1));
+          await sleep(backoff);
           continue;
         }
         throw err;
@@ -317,12 +408,13 @@ export async function generatePreview(ownerId: string, revisionId: string) {
         providerLatencyMs: latency,
         contentReady: true,
       });
-      // Only attach the audio if the text it was made from is still the revision's text.
+      // Attach the audio only if this attempt still owns the claim and the text is still the text it was made from.
       const updated = await tx
         .update(noticeRevisions)
         .set({
           status: "preview_ready",
           audioAssetId: assetId,
+          synthesisClaim: null,
           generatedAt: result.completedAt,
           requestId: result.providerRequestId,
           modelId: result.providerModel ?? provider.modelId,
@@ -333,6 +425,7 @@ export async function generatePreview(ownerId: string, revisionId: string) {
             eq(noticeRevisions.id, revisionId),
             eq(noticeRevisions.status, "synthesizing"),
             eq(noticeRevisions.synthesisKey, revision.synthesisKey),
+            eq(noticeRevisions.synthesisClaim, attemptId),
           ),
         )
         .returning({ id: noticeRevisions.id });
@@ -345,7 +438,7 @@ export async function generatePreview(ownerId: string, revisionId: string) {
           firstAudioAt: result.firstAudioAt,
           completedAt: result.completedAt,
           retries,
-          errorCode: updated.length ? null : "superseded_by_edit",
+          errorCode: updated.length ? null : "superseded",
         })
         .where(eq(synthesisAttempts.id, attemptId));
       return updated.length > 0;
@@ -366,8 +459,10 @@ export async function generatePreview(ownerId: string, revisionId: string) {
       .where(and(eq(synthesisAttempts.id, attemptId), eq(synthesisAttempts.outcome, "in_progress")));
     await db
       .update(noticeRevisions)
-      .set({ status: "failed", updatedAt: new Date() })
-      .where(and(eq(noticeRevisions.id, revisionId), eq(noticeRevisions.status, "synthesizing")));
+      .set({ status: "failed", synthesisClaim: null, updatedAt: new Date() })
+      .where(
+        and(eq(noticeRevisions.id, revisionId), eq(noticeRevisions.status, "synthesizing"), eq(noticeRevisions.synthesisClaim, attemptId)),
+      );
     if (err instanceof AppError) throw err;
     if (providerErr) {
       throw new AppError(
@@ -380,16 +475,16 @@ export async function generatePreview(ownerId: string, revisionId: string) {
   }
 }
 
-// ── Approval and promotion ──────────────────────────────────────────────────────────────────────────
-
-export async function approveRevision(ownerId: string, revisionId: string) {
+export async function approveRevision(ownerId: string, revisionId: string, opts: { expectedVersion?: number } = {}) {
   const db = await getDb();
   const { revision, notice } = await ownedRevision(db, ownerId, revisionId);
   if (revision.status === "published") return { noticeId: notice.id, revisionNumber: revision.revisionNumber, alreadyPublished: true };
+  // The approval must name the saved version whose audio the publisher heard.
+  if (opts.expectedVersion !== undefined && opts.expectedVersion !== revision.version) throw staleVersion(revision.version);
   if (revision.status !== "preview_ready" || !revision.audioAssetId) {
     throw new AppError("audio_not_ready", "Generate and listen to the audio preview before approving.");
   }
-  if (hasAmbiguousFacts(revision.displayText)) throw new AppError("validation_failed", "Resolve ambiguous dates first.");
+  assertSpokenFactsClear({ title: revision.title, text: revision.displayText, updatePreface: revision.updatePreface });
   const staged = (await db.select().from(audioAssets).where(eq(audioAssets.id, revision.audioAssetId)).limit(1))[0];
   if (!staged || !staged.contentReady || staged.revisionId !== revision.id || staged.stage !== "staging") {
     throw new AppError("audio_not_ready", "The preview audio is not ready.");
@@ -403,6 +498,22 @@ export async function approveRevision(ownerId: string, revisionId: string) {
   }
   const ext = staged.mimeType === "audio/mpeg" ? "mp3" : "wav";
   const pubKey = publishedKey(notice.id, revision.id, staged.sha256, ext);
+  // Record the intended object before writing it. If this approval loses a race or crashes, the row is
+  // still not ready, and cleanup can find and remove the bytes after a grace period.
+  const pubAssetId = newId("aud");
+  await db.insert(audioAssets).values({
+    id: pubAssetId,
+    revisionId: revision.id,
+    stage: "published",
+    objectKey: pubKey,
+    providerKind: staged.providerKind,
+    mimeType: staged.mimeType,
+    sha256: staged.sha256,
+    bytes: staged.bytes,
+    durationMs: staged.durationMs,
+    providerLatencyMs: staged.providerLatencyMs,
+    contentReady: false,
+  });
   await store.put(pubKey, bytes, staged.mimeType);
   const check = await store.get(pubKey);
   if (!check || sha256Hex(check) !== staged.sha256) throw new AppError("internal", "Published audio did not verify.", true);
@@ -421,7 +532,7 @@ export async function approveRevision(ownerId: string, revisionId: string) {
         "conflict",
         "Someone published a newer version while you were editing. Review the latest version and start a new correction.",
         false,
-        { currentRevisionNumber: current?.revisionNumber ?? null },
+        { reason: "superseded", currentRevisionNumber: current?.revisionNumber ?? null },
       );
     }
     const top = await tx
@@ -429,20 +540,7 @@ export async function approveRevision(ownerId: string, revisionId: string) {
       .from(noticeRevisions)
       .where(eq(noticeRevisions.noticeId, notice.id));
     const revisionNumber = (top[0]?.n ?? 0) + 1;
-    const pubAssetId = newId("aud");
-    await tx.insert(audioAssets).values({
-      id: pubAssetId,
-      revisionId: revision.id,
-      stage: "published",
-      objectKey: pubKey,
-      providerKind: staged.providerKind,
-      mimeType: staged.mimeType,
-      sha256: staged.sha256,
-      bytes: staged.bytes,
-      durationMs: staged.durationMs,
-      providerLatencyMs: staged.providerLatencyMs,
-      contentReady: true,
-    });
+    // Promotion is conditioned on the exact version and staged audio that were verified above.
     const promoted = await tx
       .update(noticeRevisions)
       .set({
@@ -451,6 +549,7 @@ export async function approveRevision(ownerId: string, revisionId: string) {
         publishedAt,
         audioAssetId: pubAssetId,
         confirmedCriticalFacts: true,
+        version: revision.version + 1,
         updatedAt: publishedAt,
       })
       .where(
@@ -458,10 +557,12 @@ export async function approveRevision(ownerId: string, revisionId: string) {
           eq(noticeRevisions.id, revision.id),
           eq(noticeRevisions.status, "preview_ready"),
           eq(noticeRevisions.audioAssetId, staged.id),
+          eq(noticeRevisions.version, revision.version),
         ),
       )
       .returning({ id: noticeRevisions.id });
     if (promoted.length === 0) throw new AppError("conflict", "The revision changed during approval. Reload and try again.");
+    await tx.update(audioAssets).set({ contentReady: true }).where(eq(audioAssets.id, pubAssetId));
     if (locked.currentRevisionId) {
       await tx
         .update(noticeRevisions)
@@ -485,13 +586,16 @@ export async function approveRevision(ownerId: string, revisionId: string) {
 
 export async function withdrawNotice(ownerId: string, noticeId: string) {
   const db = await getDb();
-  const notice = await ownedNotice(db, ownerId, noticeId);
-  if (notice.state !== "published") throw new AppError("conflict", "Only a published notice can be withdrawn.");
+  await ownedNotice(db, ownerId, noticeId);
   const now = new Date();
-  await db.update(notices).set({ state: "withdrawn", withdrawnAt: now, updatedAt: now }).where(eq(notices.id, noticeId));
+  // Conditional on the state, so two withdrawals (or a withdrawal racing an approval's swap) cannot both win.
+  const done = await db
+    .update(notices)
+    .set({ state: "withdrawn", withdrawnAt: now, updatedAt: now })
+    .where(and(eq(notices.id, noticeId), eq(notices.state, "published")))
+    .returning({ id: notices.id });
+  if (done.length === 0) throw new AppError("conflict", "Only a published notice can be withdrawn.");
 }
-
-// ── Reads ───────────────────────────────────────────────────────────────────────────────────────────
 
 export type NoticeListItem = Notice & { currentRevisionNumber: number | null; openDrafts: number };
 
