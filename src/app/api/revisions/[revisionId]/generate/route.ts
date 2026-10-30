@@ -5,7 +5,8 @@ import { clientIp, json, route } from "@/lib/http/route";
 import { generatePreview } from "@/lib/notices/revision-service";
 
 export const dynamic = "force-dynamic";
-// Synthesis runs inside this request; the provider timeout and retries are bounded well below this.
+// Synthesis runs inside this request. Every attempt, backoff and the storage work share one deadline
+// (SYNTHESIS_DEADLINE_MS, 50 s by default), which must stay below this limit.
 export const maxDuration = 60;
 
 export const POST = route<{ revisionId: string }>(
