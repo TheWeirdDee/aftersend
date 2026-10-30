@@ -11,10 +11,11 @@ export const POST = route<{ id: string }>(
     const user = await requireUser();
     const { id } = await params;
     const input = await readJson(req, createRevisionSchema);
-    const { revisionId, diffBase } = await createRevision(user.id, id, input);
+    const { revisionId, version, diffBase } = await createRevision(user.id, id, input);
     return json(
       {
         revisionId,
+        version,
         diff: diffBase ? wordDiff(diffBase.displayText, input.text) : null,
         factChanges: diffBase ? factChanges(diffBase.displayText, input.text) : [],
       },
