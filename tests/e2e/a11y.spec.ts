@@ -1,25 +1,5 @@
-import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
-import { generateListenApprove, publicUrl, startDemo } from "./helpers";
-
-/**
- * Automated WCAG 2.1 A/AA checks. They catch a share of problems; they do not replace a manual screen-reader pass.
- *
- * Colour contrast is computed from live styles, so a scan taken while an entrance animation is fading in reports
- * the whole animated area as low contrast (this happened once on the landing page, and once earlier on the
- * editor). A violation therefore only counts if it is still there after the page has had time to settle:
- * every scan is repeated up to four times, 600 ms apart, and fails only if the last one still has violations.
- */
-async function scan(page: Page, label: string) {
-  let summary: string[] = [];
-  for (let attempt = 0; attempt < 4; attempt++) {
-    await page.waitForTimeout(attempt === 0 ? 150 : 600);
-    const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
-    summary = results.violations.map((v) => `${v.id} (${v.impact}): ${v.nodes.map((n) => n.target.join(" ")).join(" | ")}`);
-    if (summary.length === 0) return;
-  }
-  expect(summary, `${label}: accessibility violations that persisted after the page settled`).toEqual([]);
-}
+import { expect, test } from "@playwright/test";
+import { generateListenApprove, publicUrl, scan, startDemo } from "./helpers";
 
 test("landing, demo and not-found pages have no detectable WCAG A/AA violations", async ({ page }) => {
   await page.goto("/");
