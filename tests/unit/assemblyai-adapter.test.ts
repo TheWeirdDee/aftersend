@@ -126,6 +126,27 @@ describe("AssemblyAI adapter against a local protocol server", () => {
     expect(JSON.stringify({ message: (err as Error).message, stack: (err as Error).stack })).not.toContain("test-key-not-real");
   });
 
+  it("sends a long script as several Generate frames, each under the service limit, then one Flush", async () => {
+    handlers = speak();
+    const sentence = "Pickup is at three p.m. at the main gate. ";
+    const script = sentence.repeat(130); // about 5 500 characters
+    await provider().synthesize({ ...input(), text: script });
+    const generates = seen.frames.filter((f) => f.type === "Generate") as unknown as { text: string }[];
+    expect(generates.length).toBeGreaterThanOrEqual(4);
+    for (const g of generates) expect(g.text.length).toBeLessThanOrEqual(2000);
+    expect(generates.map((g) => g.text).join("")).toBe(script);
+    expect(seen.frames.at(-1)).toEqual({ type: "Flush" });
+    expect(seen.frames.filter((f) => f.type === "Flush")).toHaveLength(1);
+  });
+
+  it("surfaces the new-sessions-per-minute rejection with the provider's retry hint", async () => {
+    handlers = (ws) =>
+      ws.send(
+        frame({ type: "Error", error_code: 3009, error_type: "rate_limited", retryable: true, retry_after_seconds: 17, error: "Too many sessions opened for this account in the last minute (allowance 5 per minute); retry in 17 s." }),
+      );
+    await expect(provider().synthesize(input())).rejects.toMatchObject({ kind: "rate_limited", retryable: true, retryAfterSec: 17, providerCode: 3009 });
+  });
+
   it("maps a rate-limit Error frame to a retryable rate_limited failure", async () => {
     handlers = (ws) => ws.send(frame({ type: "Error", error_code: 429, error: "Too many requests" }));
     await expect(provider().synthesize(input())).rejects.toMatchObject({ kind: "rate_limited", retryable: true });
