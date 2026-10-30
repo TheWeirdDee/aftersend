@@ -7,6 +7,10 @@ const schema = z.object({
   APP_URL: z.string().url().optional(),
   DATABASE_URL: z.string().optional(),
   // Connections per server instance. Keep it small behind a transaction pooler: every warm instance holds this many.
+  // Direct or session-pooler URI used only by `npm run db:migrate`. Falls back to DATABASE_URL.
+  MIGRATION_DATABASE_URL: z.string().optional(),
+  // `disable` turns TLS off for a non-local database. Leave unset: every hosted database should be reached over TLS.
+  DATABASE_SSL: z.enum(["require", "disable"]).optional(),
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(20).default(3),
   PGLITE_DIR: z.string().optional(),
   STORAGE_DRIVER: z.enum(["local", "s3", "supabase"]).default("local"),
