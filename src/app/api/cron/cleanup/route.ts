@@ -5,6 +5,8 @@ import { json, route } from "@/lib/http/route";
 import { runCleanup } from "@/lib/notices/cleanup";
 
 export const dynamic = "force-dynamic";
+// Cleanup deletes objects one by one; give it the same ceiling as synthesis.
+export const maxDuration = 60;
 
 /** Scheduled cleanup of expired previews, abandoned publish copies, expired sessions and rate-limit rows. Requires `Authorization: Bearer $CRON_SECRET`. */
 export const GET = route(async (req: NextRequest) => {
