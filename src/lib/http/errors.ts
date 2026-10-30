@@ -69,7 +69,8 @@ export function toEnvelope(err: unknown): { status: number; body: ErrorEnvelope 
       body: { code: err.code, message: err.message, retryable: err.retryable, correlationId, details: err.details },
     };
   }
-  // Unknown failures are logged server-side with the correlation id only; nothing raw reaches the client.
+  // Unknown failures are logged server-side with their stack and the correlation id. Only the correlation id
+  // reaches the client, so a support request can be matched to the log line.
   console.error(`[aftersend] ${correlationId}`, err instanceof Error ? err.stack ?? err.message : err);
   return {
     status: 500,
