@@ -125,3 +125,15 @@ Ten defects in the deployment path were found and fixed (full table with tests i
 | Migration safety | Done except the lock itself, which cannot be demonstrated without a real Postgres. |
 | Live verification (AssemblyAI, Resend, Supabase, Vercel) | **Blocked: no credentials, no deployment authorisation.** Tooling ready and rehearsed. |
 | Human listening review | **Not done.** |
+
+
+## Fifth pass, 30 October 2026: first live provider checks
+
+| Item | Status |
+|---|---|
+| #1 Real speech: both voices, repeats, long notice, timeout, completeness assumption | **Verified live** (12/12 and 6/6 syntheses, duration difference 0 ms on all 23). Pronunciation **not reviewed**; EU endpoint not tried |
+| New defects found only by the live service | Two: a 2 000-character per-frame limit the adapter ignored, and retry timing that could not outlast the 5-sessions-per-minute window. Both fixed with tests (see `RESULTS.md`) |
+| Email (Resend, verified domain) | Sending and the real failure path verified; inbox receipt and rendering **not verified** |
+| Shared Resend account | Protected by a daily cap on sign-in emails; AfterSend makes no other call to the account |
+| Supabase database and storage | **Blocked**: password and service key not in `.env.local` |
+| Deployment and live journey | **Blocked**: not authorised / needs a readable mailbox |
