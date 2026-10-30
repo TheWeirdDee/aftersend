@@ -1,0 +1,181 @@
+{
+  "startedAt": "2026-10-30T11:31:33.916Z",
+  "endpoint": "wss://tts.us.assemblyai.com/v1/ws",
+  "inputs": [
+    {
+      "label": "original",
+      "text": "Sample School Schedule Notice. Dear parents and guardians, Classes will end early on Friday, 24 October 2026, for a staff training day. Pickup is at three p.m. at the main gate. Please bring your pickup card. Thank you for your support."
+    },
+    {
+      "label": "corrected",
+      "text": "Sample School Schedule Notice. Update: Pickup is at four p.m. at the main gate. Dear parents and guardians, Classes will end early on Friday, 24 October 2026, for a staff training day. Pickup is at four p.m. at the main gate. Please bring your pickup card. Thank you for your support."
+    }
+  ],
+  "results": [
+    {
+      "voice": "aai-jane",
+      "run": 1,
+      "label": "original",
+      "ok": true,
+      "file": "evidence/raw/audio/aai-jane-original-run1-b185909d.wav",
+      "characters": 236,
+      "bytes": 756524,
+      "decodedDurationMs": 15760,
+      "providerReportedDurationMs": 15760,
+      "durationDeltaMs": 0,
+      "timeToFirstAudioMs": 1157,
+      "totalMs": 2564,
+      "providerRequestId": "5d2b88bb-43bd-4e59-b066-713a53b30243",
+      "model": "assemblyai-tts-1",
+      "sha256": "b185909d96efcecd8dc868c0a06aac7a9ce5b0d0c680140d4fa94929c5652ebb"
+    },
+    {
+      "voice": "aai-jane",
+      "run": 1,
+      "label": "corrected",
+      "ok": true,
+      "file": "evidence/raw/audio/aai-jane-corrected-run1-7317cf72.wav",
+      "characters": 284,
+      "bytes": 948524,
+      "decodedDurationMs": 19760,
+      "providerReportedDurationMs": 19760,
+      "durationDeltaMs": 0,
+      "timeToFirstAudioMs": 948,
+      "totalMs": 2795,
+      "providerRequestId": "b924e8ab-0b7c-456e-ac39-457e9f44009f",
+      "model": "assemblyai-tts-1",
+      "sha256": "7317cf72a758ea683b6d721f3570346e79c91bd44e15319842358ab5971c0655"
+    },
+    {
+      "voice": "aai-jane",
+      "run": 2,
+      "label": "original",
+      "ok": true,
+      "file": "evidence/raw/audio/aai-jane-original-run2-a1f85b77.wav",
+      "characters": 236,
+      "bytes": 756524,
+      "decodedDurationMs": 15760,
+      "providerReportedDurationMs": 15760,
+      "durationDeltaMs": 0,
+      "timeToFirstAudioMs": 1435,
+      "totalMs": 2861,
+      "providerRequestId": "041257c8-fe2f-47fa-b64f-0c6128ff3c31",
+      "model": "assemblyai-tts-1",
+      "sha256": "a1f85b77276792a38fcb600adb58a445f43e944e9dc5668da62f67a30c62161f"
+    },
+    {
+      "voice": "aai-jane",
+      "run": 2,
+      "label": "corrected",
+      "ok": true,
+      "file": "evidence/raw/audio/aai-jane-corrected-run2-9fb6b139.wav",
+      "characters": 284,
+      "bytes": 944684,
+      "decodedDurationMs": 19680,
+      "providerReportedDurationMs": 19680,
+      "durationDeltaMs": 0,
+      "timeToFirstAudioMs": 953,
+      "totalMs": 2719,
+      "providerRequestId": "e34691d1-045f-411d-ba01-a1f5a7db23a6",
+      "model": "assemblyai-tts-1",
+      "sha256": "9fb6b1390acd732e95e537285834c9b5dde89c1eaa50739f56824fada43cfcfb"
+    },
+    {
+      "voice": "aai-jane",
+      "run": 3,
+      "label": "original",
+      "ok": true,
+      "file": "evidence/raw/audio/aai-jane-original-run3-c1ffb09b.wav",
+      "characters": 236,
+      "bytes": 756524,
+      "decodedDurationMs": 15760,
+      "providerReportedDurationMs": 15760,
+      "durationDeltaMs": 0,
+      "timeToFirstAudioMs": 965,
+      "totalMs": 2382,
+      "providerRequestId": "9a9ba482-7c9a-46fa-b00f-59fc7268d828",
+      "model": "assemblyai-tts-1",
+      "sha256": "c1ffb09baa561da4ef57bdd6fe5d680f4036fbb1087cc6bdff264f2377fe5ae5"
+    },
+    {
+      "voice": "aai-jane",
+      "run": 3,
+      "label": "corrected",
+      "ok": false,
+      "kind": "rate_limited",
+      "retryable": true,
+      "error": "SpeechProviderError: AssemblyAI rate limit reached.",
+      "totalMs": 685
+    },
+    {
+      "voice": "aai-kyla",
+      "run": 1,
+      "label": "original",
+      "ok": false,
+      "kind": "rate_limited",
+      "retryable": true,
+      "error": "SpeechProviderError: AssemblyAI rate limit reached.",
+      "totalMs": 694
+    },
+    {
+      "voice": "aai-kyla",
+      "run": 1,
+      "label": "corrected",
+      "ok": false,
+      "kind": "rate_limited",
+      "retryable": true,
+      "error": "SpeechProviderError: AssemblyAI rate limit reached.",
+      "totalMs": 676
+    },
+    {
+      "voice": "aai-kyla",
+      "run": 2,
+      "label": "original",
+      "ok": false,
+      "kind": "rate_limited",
+      "retryable": true,
+      "error": "SpeechProviderError: AssemblyAI rate limit reached.",
+      "totalMs": 718
+    },
+    {
+      "voice": "aai-kyla",
+      "run": 2,
+      "label": "corrected",
+      "ok": false,
+      "kind": "rate_limited",
+      "retryable": true,
+      "error": "SpeechProviderError: AssemblyAI rate limit reached.",
+      "totalMs": 698
+    },
+    {
+      "voice": "aai-kyla",
+      "run": 3,
+      "label": "original",
+      "ok": false,
+      "kind": "rate_limited",
+      "retryable": true,
+      "error": "SpeechProviderError: AssemblyAI rate limit reached.",
+      "totalMs": 710
+    },
+    {
+      "voice": "aai-kyla",
+      "run": 3,
+      "label": "corrected",
+      "ok": false,
+      "kind": "rate_limited",
+      "retryable": true,
+      "error": "SpeechProviderError: AssemblyAI rate limit reached.",
+      "totalMs": 737
+    }
+  ],
+  "probes": [],
+  "summary": {
+    "requests": 12,
+    "succeeded": 5,
+    "failed": 7,
+    "medianTotalMs": 2719,
+    "medianTimeToFirstAudioMs": 965,
+    "maxAbsDurationDeltaMs": 0,
+    "humanListeningReview": "NOT DONE. Play every file and complete docs/LISTENING_REVIEW.md."
+  }
+}
