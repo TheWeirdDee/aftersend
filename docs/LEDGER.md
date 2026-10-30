@@ -17,11 +17,15 @@
 - Responsive sweep at 320–1920px; Lighthouse local runs
 - Staging audio cleanup (24 h) plus a cron route
 
+- Passwordless email sign-in (one-time codes), linking and merging of browser workspaces, recovery on another device, sign-out everywhere (unit, integration and browser tests; email delivery tested only against the file outbox and a mocked Resend client)
+- Structured JSON logging with credential redaction; liveness vs readiness (database, speech, storage, email, auth); deployment verification script
+
 ## Implemented but unverified
 - S3 storage driver (no bucket available)
 - Hosted Postgres path (`postgres-js` + `db:migrate`); tests use PGlite
 - AssemblyAI adapter: transport and WAV assembly ran once against the real service on 30 Oct 2026 (`npm run tts:smoke`, 2 syntheses, sub-3 s each). Failure handling (bad base64, dropped stream, short audio, auth, rate limit, timeout, abort) is covered against a local protocol server, not the real service. `aai-kyla`, the EU endpoint, text-length and rate limits, repeatability and pronunciation are unchecked
-- Supabase Storage, S3 and hosted Postgres paths (mocked or local only)
+- Supabase Storage driver (mocked HTTP only), S3 (not run), Resend (mocked HTTP only)
+- Hosted Postgres: `postgres-js` over the wire protocol against PGlite behind a socket; never against real Postgres or Supabase
 
 ## Blocked by external dependency
 - Deployment: needs hosting accounts and owner approval
@@ -29,7 +33,6 @@
 - Submission: needs the above plus owner approval
 
 ## Not yet implemented
-- Workspace recovery / account sign-in (decision needed; see `docs/ARCHITECTURE.md` §9)
 - Place detection in critical facts
 - Reconciliation of published objects that have no database row at all (only tracked rows are cleaned)
 - Background worker for long syntheses (only if real latency requires it)
