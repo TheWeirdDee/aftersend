@@ -91,6 +91,12 @@ export async function requestCode(input: { email: string; linkUserId: string | n
     if (link) noticeCount = (await db.select({ id: notices.id }).from(notices).where(eq(notices.ownerId, link.id))).length;
   }
 
+  // The email account is shared with other applications and has one daily quota. Count only emails about to be sent.
+  await enforceRateLimit("auth-email-global", env().AUTH_EMAILS_PER_DAY, 24 * HOUR).catch((err) => {
+    log("warn", "auth.daily_email_cap_reached", { cap: env().AUTH_EMAILS_PER_DAY });
+    throw err;
+  });
+
   const id = newId("chl");
   const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
   await db.insert(authChallenges).values({
@@ -109,8 +115,9 @@ export async function requestCode(input: { email: string; linkUserId: string | n
   const purpose = link
     ? `Entering it will connect this email to the AfterSend workspace you have open${noticeCount ? ` (${noticeCount} notice${noticeCount === 1 ? "" : "s"})` : ""}, so you can reach it from any device.`
     : "Entering it will sign you in to your AfterSend workspace, or create one if this is your first time.";
+  let emailId: string | null = null;
   try {
-    await sendEmail({
+    ({ id: emailId } = await sendEmail({
       to: email,
       subject: `Your AfterSend code: ${code}`,
       text: [
@@ -122,13 +129,13 @@ export async function requestCode(input: { email: string; linkUserId: string | n
         "Never share this code. AfterSend staff will never ask for it.",
         "If you did not ask for it, ignore this email; nothing has changed.",
       ].join("\n"),
-    });
+    }));
   } catch (err) {
     await db.update(authChallenges).set({ consumedAt: now }).where(eq(authChallenges.id, id));
     log("error", "auth.email_failed", { emailRef: ref, error: err instanceof EmailError ? err.message : "unknown" });
     throw new AppError("provider_unavailable", "We could not send the email. Try again in a moment.", true);
   }
-  log("info", "auth.code_requested", { emailRef: ref, linking: !!link });
+  log("info", "auth.code_requested", { emailRef: ref, linking: !!link, emailId });
   return { cooldownSec: RESEND_COOLDOWN_MS / 1000 };
 }
 
