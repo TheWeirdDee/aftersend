@@ -15,6 +15,7 @@ export function configureTestEnv() {
     AFTERSEND_ALLOW_TEST_EMAIL: "1",
     EMAIL_OUTBOX_DIR: path.join(dir, "outbox"),
     AUTH_SECRET: "integration-test-secret-0123456789",
+    AUTH_EMAILS_PER_DAY: "100000",
     AFTERSEND_ALLOW_TEST_PROVIDER: "1",
     ASSEMBLYAI_TTS_TIMEOUT_MS: "2000",
   });
