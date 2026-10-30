@@ -1,5 +1,7 @@
 import { sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
+import { emailConfigured } from "@/lib/email";
+import { env } from "@/lib/env";
 import { json } from "@/lib/http/route";
 import { speechProvider } from "@/lib/speech";
 import { probeObjectStore } from "@/lib/storage/audio";
@@ -32,6 +34,11 @@ export async function GET() {
   } catch {
     checks.storage = "error";
   }
-  const ok = checks.database === "ok" && checks.speech.startsWith("ok") && checks.storage === "ok";
+  const mail = emailConfigured();
+  checks.email = mail.ok ? `ok (${mail.driver})` : `unavailable: ${mail.reason}`;
+  // Sign-in codes are signed with AUTH_SECRET; without it, production refuses to issue them.
+  checks.auth = env().AUTH_SECRET || env().NODE_ENV !== "production" ? "ok" : "unavailable: AUTH_SECRET is not set on the server.";
+  const ok =
+    checks.database === "ok" && checks.speech.startsWith("ok") && checks.storage === "ok" && checks.email.startsWith("ok") && checks.auth === "ok";
   return json({ ok, checks }, { status: ok ? 200 : 503 });
 }
