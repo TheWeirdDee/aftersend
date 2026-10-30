@@ -17,12 +17,18 @@ export async function createWorkspaceUser(kind: User["kind"], displayName: strin
   return id;
 }
 
-/** Issues an httpOnly, SameSite=Lax session cookie. Only the token's hash is stored. */
-export async function startSession(userId: string) {
+/** Creates a session row and returns the raw token. Only the token's hash is stored. */
+export async function issueSession(userId: string) {
   const db = await getDb();
   const token = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 86400_000);
   await db.insert(sessions).values({ tokenHash: sha256Hex(token), userId, expiresAt });
+  return { token, expiresAt };
+}
+
+/** Issues an httpOnly, SameSite=Lax session cookie. */
+export async function startSession(userId: string) {
+  const { token, expiresAt } = await issueSession(userId);
   const jar = await cookies();
   jar.set(SESSION_COOKIE, token, {
     httpOnly: true,
@@ -54,6 +60,20 @@ export async function requireUser(): Promise<User> {
   const user = await currentUser();
   if (!user) throw new AppError("unauthenticated", "Sign in to your workspace first.");
   return user;
+}
+
+/**
+ * Signs in as `userId` with a brand-new token and retires the one the browser presented, so a token that
+ * existed before sign-in (planted, leaked or stale) cannot be used afterwards.
+ */
+export async function replaceSession(userId: string) {
+  const jar = await cookies();
+  const old = jar.get(SESSION_COOKIE)?.value;
+  if (old) {
+    const db = await getDb();
+    await db.delete(sessions).where(eq(sessions.tokenHash, sha256Hex(old)));
+  }
+  await startSession(userId);
 }
 
 export async function endSession() {
