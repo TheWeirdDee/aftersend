@@ -8,6 +8,7 @@
  *   npm run tts:probe -- --send frame.json     # send one documented JSON frame after open
  *   npm run tts:probe -- --no-key              # observe the unauthenticated response
  */
+import "./load-env";
 import fs from "node:fs";
 import WebSocket from "ws";
 
