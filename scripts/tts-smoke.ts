@@ -14,6 +14,7 @@
  * Request budget: at most --max-requests (default 14) synthesis requests per invocation, so a typo cannot
  * run up a bill.
  */
+import "./load-env";
 import fs from "node:fs";
 import { createHash } from "node:crypto";
 import { inspectAudio } from "../src/lib/audio/wav";
