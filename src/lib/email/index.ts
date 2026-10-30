@@ -30,7 +30,8 @@ export function emailConfigured(): EmailConfig {
 }
 
 /** Sends plain text only: no HTML and no links, so there is nothing for a mail client to render or a scanner to click. */
-export async function sendEmail(message: EmailMessage, fetchImpl: typeof fetch = fetch): Promise<void> {
+/** Resolves with the provider's message id (for tracing a delivery in its dashboard), or the outbox file name for the test driver. */
+export async function sendEmail(message: EmailMessage, fetchImpl: typeof fetch = fetch): Promise<{ id: string | null }> {
   const config = emailConfigured();
   if (!config.ok) throw new EmailError(config.reason, false);
   const e = env();
@@ -38,8 +39,9 @@ export async function sendEmail(message: EmailMessage, fetchImpl: typeof fetch =
   if (config.driver === "file") {
     const dir = path.resolve(e.EMAIL_OUTBOX_DIR);
     await fs.mkdir(dir, { recursive: true });
-    await fs.writeFile(path.join(dir, `${Date.now()}-${newId("mail")}.json`), JSON.stringify({ ...message, sentAt: new Date().toISOString() }, null, 2));
-    return;
+    const name = `${Date.now()}-${newId("mail")}.json`;
+    await fs.writeFile(path.join(dir, name), JSON.stringify({ ...message, sentAt: new Date().toISOString() }, null, 2));
+    return { id: name };
   }
 
   let res: Response;
@@ -57,4 +59,6 @@ export async function sendEmail(message: EmailMessage, fetchImpl: typeof fetch =
     // The provider's response body can echo request details, so only the status is kept.
     throw new EmailError(`The email service refused the message (${res.status}).`, res.status === 429 || res.status >= 500);
   }
+  const body = (await res.json().catch(() => null)) as { id?: unknown } | null;
+  return { id: typeof body?.id === "string" ? body.id : null };
 }
