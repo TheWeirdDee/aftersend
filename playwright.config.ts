@@ -18,7 +18,8 @@ export default defineConfig({
     { name: "mobile", use: { ...devices["Pixel 7"], viewport: { width: 390, height: 844 } }, testMatch: /mobile|listener/ },
   ],
   webServer: {
-    command: `rm -rf .data/e2e && npx next start -p ${PORT}`,
+    // The helper is cross-platform (no `rm -rf`) and only ever touches .data/e2e.
+    command: `node scripts/e2e-clean.mjs && npx next start -p ${PORT}`,
     url: `http://localhost:${PORT}/api/health`,
     reuseExistingServer: false,
     timeout: 120_000,
