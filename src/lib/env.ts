@@ -6,6 +6,8 @@ const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   APP_URL: z.string().url().optional(),
   DATABASE_URL: z.string().optional(),
+  // Connections per server instance. Keep it small behind a transaction pooler: every warm instance holds this many.
+  DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(20).default(3),
   PGLITE_DIR: z.string().optional(),
   STORAGE_DRIVER: z.enum(["local", "s3", "supabase"]).default("local"),
   LOCAL_STORAGE_DIR: z.string().default(".data/objects"),
@@ -29,6 +31,17 @@ const schema = z.object({
   ASSEMBLYAI_TTS_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
   // Ceiling for a whole generate request (all attempts, backoff and storage). Keep it under the route's maxDuration.
   SYNTHESIS_DEADLINE_MS: z.coerce.number().int().min(1000).default(50000),
+  // Signs sign-in codes. Required in production (generate with `openssl rand -base64 32`); never reuse another secret.
+  AUTH_SECRET: z.string().min(16).optional(),
+  // "resend" sends real email. "file" writes messages to EMAIL_OUTBOX_DIR for automated tests and needs the opt-in below.
+  EMAIL_DRIVER: z.enum(["resend", "file"]).default("resend"),
+  AFTERSEND_ALLOW_TEST_EMAIL: z.enum(["0", "1"]).default("0"),
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().optional(),
+  EMAIL_OUTBOX_DIR: z.string().default(".data/outbox"),
+  // Sign-in abuse limits per client IP per hour. Per-address limits are fixed (5 codes, 30 attempts).
+  AUTH_REQUESTS_PER_IP_PER_HOUR: z.coerce.number().int().positive().default(20),
+  AUTH_VERIFY_PER_IP_PER_HOUR: z.coerce.number().int().positive().default(30),
   SYNTHESIS_LIMIT_PER_HOUR: z.coerce.number().int().positive().default(30),
   DEMO_WORKSPACES_PER_IP_PER_HOUR: z.coerce.number().int().positive().default(10),
 });
