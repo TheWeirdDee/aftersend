@@ -1,6 +1,7 @@
 import "server-only";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { isHostedProduction } from "../config-check";
 import { env } from "../env";
 import { newId } from "../ids";
 
@@ -19,6 +20,7 @@ export type EmailConfig = { ok: true; driver: "resend" | "file" } | { ok: false;
 export function emailConfigured(): EmailConfig {
   const e = env();
   if (e.EMAIL_DRIVER === "file") {
+    if (isHostedProduction()) return { ok: false, reason: "EMAIL_DRIVER=file is refused on hosted production." };
     if (e.AFTERSEND_ALLOW_TEST_EMAIL !== "1") return { ok: false, reason: "EMAIL_DRIVER=file requires AFTERSEND_ALLOW_TEST_EMAIL=1." };
     return { ok: true, driver: "file" };
   }
