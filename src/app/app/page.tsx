@@ -26,15 +26,23 @@ export default async function WorkspacePage() {
               Start publishing spoken notices.
             </h1>
             <p className="mt-4 text-[16.5px] leading-[1.6] text-muted">
-              A workspace is private to this browser and kept with a secure session cookie. Hackathon build: there are no
-              email accounts yet, so clearing cookies means losing edit access. Published links keep working.
+              Sign in with your email to keep your notices reachable from any device and recoverable if you clear your browser. Published
+              links work for everyone, signed in or not.
             </p>
             <div className="mt-8 grid gap-3 sm:grid-cols-2">
-              <StartWorkspaceButton kind="workspace" className="btn-primary h-12 w-full">
-                Create a workspace
-              </StartWorkspaceButton>
+              <Link href="/signin" className="btn-primary h-12 w-full">
+                Sign in with email
+              </Link>
               <StartWorkspaceButton kind="demo" className="btn-secondary h-12 w-full">
                 Open demo workspace
+              </StartWorkspaceButton>
+            </div>
+            <div className="mt-5 border-t border-line pt-5">
+              <p className="mb-2 text-[13.5px] leading-5 text-muted">
+                Just trying it out? A workspace without email is tied to this browser only; you can connect an email later.
+              </p>
+              <StartWorkspaceButton kind="workspace" className="btn-ghost btn-sm -ml-3">
+                Start a workspace without email
               </StartWorkspaceButton>
             </div>
             <p className="mt-4 text-[13px] leading-5 text-faint">The demo workspace comes with a labelled sample school notice.</p>
@@ -49,7 +57,7 @@ export default async function WorkspacePage() {
 
   return (
     <>
-      <AppHeader workspaceLabel={user.displayName} isDemo={user.kind === "demo"} />
+      <AppHeader workspaceLabel={user.email ?? user.displayName} isDemo={user.kind === "demo"} hasEmail={!!user.email} />
       <main id="main" className="mx-auto max-w-[1180px] px-4 py-10 sm:px-6 sm:py-14">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
