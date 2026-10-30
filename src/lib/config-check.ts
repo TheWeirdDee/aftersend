@@ -42,6 +42,11 @@ export function checkProductionConfig(env: Record<string, string | undefined>): 
     if (!present(env[name])) problems.push(`${name} is not set (${why}).`);
   };
 
+  // A connection string copied from a dashboard still has its password placeholder until someone fills it in.
+  for (const name of ["DATABASE_URL", "MIGRATION_DATABASE_URL"]) {
+    if (/\[YOUR-PASSWORD\]|\[PASSWORD\]|<password>/i.test(env[name] ?? "")) problems.push(`${name} still contains its password placeholder.`);
+  }
+
   // Database: a hosted Postgres is the only option on a serverless host (the embedded one writes to a read-only disk).
   const db = env.DATABASE_URL;
   if (!present(db)) problems.push("DATABASE_URL is not set (production needs hosted Postgres; the embedded database cannot persist on a serverless host).");
