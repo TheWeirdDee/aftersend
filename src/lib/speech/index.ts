@@ -1,4 +1,5 @@
 import "server-only";
+import { isHostedProduction } from "../config-check";
 import { env } from "../env";
 import { AssemblyAiTtsProvider } from "./assemblyai";
 import type { SpeechProvider } from "./provider";
@@ -10,6 +11,7 @@ export function speechProvider(): SpeechProvider {
   if (override) return override;
   const e = env();
   if (e.SPEECH_PROVIDER === "test") {
+    if (isHostedProduction()) throw new Error("SPEECH_PROVIDER=test is refused on hosted production.");
     if (e.AFTERSEND_ALLOW_TEST_PROVIDER !== "1") {
       throw new Error("SPEECH_PROVIDER=test requires AFTERSEND_ALLOW_TEST_PROVIDER=1.");
     }
