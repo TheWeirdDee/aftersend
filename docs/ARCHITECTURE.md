@@ -106,6 +106,8 @@ Ready published audio is never removed: superseded versions are the notice's his
 
 ## 7. Readiness
 
+(Third and fourth passes: readiness also covers email and sign-in configuration, and on hosted production it runs the full production configuration check, naming what is wrong without revealing a value. Test speech, the file mailbox and the insecure-cookie switch are refused outright on hosted production.)
+
 `/api/health` is liveness: the process answers and the database is reachable. `/api/ready` is readiness: database, speech configured (configuration only; it never makes a billable call) and an object-store write/read/delete probe. It answers `503` if any fail. Point load-balancer checks at `health` and deployment gates at `ready`.
 
 ## 8. Security notes
