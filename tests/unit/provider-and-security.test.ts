@@ -10,16 +10,16 @@ describe("AssemblyAI adapter", () => {
   it("parses the error frame observed from the live endpoint", () => {
     expect(
       parseErrorFrame('{"type":"Error","error_code":1008,"error":"Unauthorized: missing Authorization header or token query param"}'),
-    ).toEqual({ code: 1008, message: "Unauthorized: missing Authorization header or token query param" });
+    ).toMatchObject({ code: 1008, message: "Unauthorized: missing Authorization header or token query param", errorType: null, retryAfterSec: null });
     expect(parseErrorFrame('{"type":"Other"}')).toBeNull();
     expect(parseErrorFrame("not json")).toBeNull();
   });
 
   it("maps provider errors to retryable/non-retryable kinds", () => {
-    expect(mapProviderError(1008, "Unauthorized")).toMatchObject({ kind: "auth", retryable: false });
-    expect(mapProviderError(429, "Too many requests")).toMatchObject({ kind: "rate_limited", retryable: true });
-    expect(mapProviderError(1011, "internal error")).toMatchObject({ kind: "provider_error", retryable: true });
-    expect(mapProviderError("x", "bad text")).toMatchObject({ kind: "invalid_request", retryable: false });
+    expect(mapProviderError({ code: 1008, message: "Unauthorized" })).toMatchObject({ kind: "auth", retryable: false });
+    expect(mapProviderError({ code: 429, message: "Too many requests" })).toMatchObject({ kind: "rate_limited", retryable: true });
+    expect(mapProviderError({ code: 1011, message: "internal error" })).toMatchObject({ kind: "provider_error", retryable: true });
+    expect(mapProviderError({ code: "x", message: "bad text" })).toMatchObject({ kind: "invalid_request", retryable: false });
   });
 
   it("builds the documented connection URL and auth header", () => {
@@ -153,5 +153,54 @@ describe("the shipped .env.example", () => {
       }
       resetEnvCache();
     }
+  });
+});
+
+describe("AssemblyAI service limits", () => {
+  it("parses the rate-limit frame exactly as the service sent it on 30 Oct 2026", async () => {
+    const { parseErrorFrame } = await import("@/lib/speech/assemblyai-protocol");
+    const { mapProviderError } = await import("@/lib/speech/assemblyai");
+    const live =
+      '{"type":"Error","error_code":3009,"error_type":"rate_limited","retryable":true,"retry_after_seconds":38,"param":null,"error":"Too many sessions opened for this account in the last minute (allowance 5 per minute); retry in 38 s."}';
+    const frame = parseErrorFrame(live)!;
+    expect(frame).toMatchObject({ code: 3009, errorType: "rate_limited", retryable: true, retryAfterSec: 38 });
+    const err = mapProviderError(frame);
+    expect(err).toMatchObject({ kind: "rate_limited", retryable: true, retryAfterSec: 38, providerCode: 3009 });
+    // The client-facing message is fixed text; the provider's wording is kept for logs only.
+    expect(err.message).toBe("AssemblyAI rate limit reached.");
+    expect(err.providerDetail).toContain("allowance 5 per minute");
+  });
+
+  it("classifies the other documented codes", async () => {
+    const { mapProviderError } = await import("@/lib/speech/assemblyai");
+    expect(mapProviderError({ code: 3005, message: "at capacity", errorType: "at_capacity", retryable: true, retryAfterSec: null })).toMatchObject({ kind: "provider_error", retryable: true });
+    expect(mapProviderError({ code: 3006, message: "Generate.text too long", errorType: "invalid_message", retryable: false, retryAfterSec: null })).toMatchObject({ kind: "invalid_request", retryable: false });
+    expect(mapProviderError({ code: 3010, message: "Input text rate exceeded", errorType: "input_rate_exceeded", retryable: false, retryAfterSec: null })).toMatchObject({ kind: "invalid_request", retryable: false });
+    expect(mapProviderError({ code: 4000, message: "something new", errorType: "new_thing", retryable: true, retryAfterSec: null })).toMatchObject({ kind: "provider_error", retryable: true });
+  });
+
+  it("splits long scripts under the 2 000-character frame limit and loses nothing", async () => {
+    const { chunkForGenerate, MAX_GENERATE_CHARS } = await import("@/lib/speech/assemblyai-protocol");
+    const sentence = "Pickup is at three p.m. at the main gate. ";
+    const script = sentence.repeat(160); // about 6 700 characters
+    const chunks = chunkForGenerate(script);
+    expect(chunks.length).toBeGreaterThan(3);
+    expect(chunks.join("")).toBe(script); // consecutive texts are joined exactly as sent
+    for (const c of chunks) expect(c.length).toBeLessThanOrEqual(MAX_GENERATE_CHARS);
+    for (const c of chunks.slice(0, -1)) expect(c.endsWith(" ")).toBe(true); // cut at a sentence end, space kept
+    expect(chunkForGenerate("short")).toEqual(["short"]);
+    expect(chunkForGenerate("")).toEqual([""]);
+  });
+
+  it("cuts at a space when there is no sentence end, and never splits an emoji or a word-less run badly", async () => {
+    const { chunkForGenerate } = await import("@/lib/speech/assemblyai-protocol");
+    const words = "word ".repeat(1000);
+    const chunks = chunkForGenerate(words);
+    expect(chunks.join("")).toBe(words);
+    expect(chunks.every((c) => c.length <= 1800 && c.endsWith(" "))).toBe(true);
+    const emoji = "😀".repeat(2000); // 4 000 UTF-16 units, no spaces: forced hard cuts
+    const parts = chunkForGenerate(emoji);
+    expect(parts.join("")).toBe(emoji);
+    for (const p of parts) expect(Array.from(p).every((ch) => ch === "😀")).toBe(true); // no lone surrogates
   });
 });
