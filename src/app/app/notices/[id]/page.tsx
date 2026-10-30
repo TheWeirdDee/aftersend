@@ -41,7 +41,7 @@ export default async function NoticePage({
 
   return (
     <>
-      <AppHeader workspaceLabel={user.displayName} isDemo={user.kind === "demo"} />
+      <AppHeader workspaceLabel={user.email ?? user.displayName} isDemo={user.kind === "demo"} hasEmail={!!user.email} />
       <main id="main" className="mx-auto max-w-[1180px] px-4 py-8 sm:px-6 sm:py-12">
         <Link href="/app" className="text-[14px] text-muted hover:text-fg">
           ← Notices
