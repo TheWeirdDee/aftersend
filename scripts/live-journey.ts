@@ -6,7 +6,8 @@
  *   Live (spends AssemblyAI credits: 2 syntheses; sends 2 emails; refuses to run against test providers):
  *     npm run verify:live -- https://your-app.vercel.app --email you@yourdomain.com --confirm-live
  *     (the script pauses twice and asks you to type the 6-digit code that arrives in that mailbox;
- *      add --email2 other@yourdomain.com for the cross-account checks and --storage-check for the bucket)
+ *      add --email2 other@yourdomain.com for the cross-account checks and --storage-check for the bucket;
+ *      add --code-file <path> to take each code from that file instead of the keyboard, for a run with no terminal)
  *
  *   Rehearsal (local server with the test doubles; reads codes from the file outbox; proves the script, not the infrastructure):
  *     npm run verify:live -- http://localhost:3100 --email a@example.com --rehearsal --outbox .data/e2e/outbox
@@ -31,6 +32,7 @@ const email = val("--email");
 const email2 = val("--email2");
 const rehearsal = flag("--rehearsal");
 const outbox = val("--outbox");
+const codeFile = val("--code-file");
 
 if (!base || !email || (!rehearsal && !flag("--confirm-live"))) {
   console.error(
@@ -128,6 +130,22 @@ async function askCode(address: string, label: string, before: number) {
       await new Promise((r) => setTimeout(r, 250));
     }
     throw new Error("no code arrived in the outbox");
+  }
+  if (codeFile) {
+    // For an unattended runner: wait for a person to put the 6-digit code from the mailbox in this file.
+    console.log(`WAITING_FOR_CODE  ${label}  (write the 6-digit code into ${codeFile})`);
+    const deadline = Date.now() + 9 * 60_000;
+    while (Date.now() < deadline) {
+      if (fs.existsSync(codeFile)) {
+        const code = fs.readFileSync(codeFile, "utf8").trim();
+        if (/^\d{6}$/.test(code)) {
+          fs.rmSync(codeFile, { force: true });
+          return code;
+        }
+      }
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    throw new Error("no code was provided in time");
   }
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   const answer = (await rl.question(`\n>>> Type the 6-digit code sent to the mailbox for ${label} (it is not echoed in the report): `)).trim();
@@ -279,6 +297,30 @@ async function main() {
     const page = await (await call(null, "GET", `/n/${ctx.token}`)).text();
     expect(page.includes("has been withdrawn") && !page.includes("<audio"), "page still offers audio");
   });
+
+  if (flag("--storage-check") || rehearsal === false) {
+    await step("13b. the withdrawn storage object is not readable directly from storage", async () => {
+      const supa = process.env.SUPABASE_URL?.replace(/\/$/, "");
+      const bucket = process.env.OBJECT_STORAGE_BUCKET;
+      if (!supa || !bucket) {
+        if (flag("--storage-check")) throw new Error("--storage-check needs SUPABASE_URL and OBJECT_STORAGE_BUCKET (no key is needed)");
+        return "skipped: SUPABASE_URL / OBJECT_STORAGE_BUCKET not set in this shell";
+      }
+      const detail = await json(await call(owner, "GET", `/api/notices/${ctx.noticeId}`));
+      const v2 = detail.revisions.find((r: any) => r.revisionNumber === 2);
+      const key: string | undefined = v2?.audio?.objectKey;
+      expect(key, "owner detail has no object key for version 2");
+      const b = encodeURIComponent(bucket);
+      const shapes = [`/storage/v1/object/public/${b}/${key}`, `/storage/v1/object/${b}/${key}`, `/storage/v1/object/authenticated/${b}/${key}`];
+      const results: number[] = [];
+      for (const s of shapes) {
+        const res = await fetch(`${supa}${s}`);
+        results.push(res.status);
+        expect(res.status !== 200, `storage served the withdrawn object at ${s.split("/").slice(3, 5).join("/")}`);
+      }
+      return `anonymous statuses ${results.join(", ")}`;
+    });
+  }
 
   await step("14. lose the browser session", async () => {
     const fresh = new Jar(); // a different browser with no cookie
