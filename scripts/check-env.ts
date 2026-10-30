@@ -9,7 +9,7 @@
  */
 import fs from "node:fs";
 import { checkProductionConfig } from "../src/lib/config-check";
-import { parseEnvFile } from "./env-file";
+import { inlineCommentNames, parseEnvFile } from "./env-file";
 
 const args = process.argv.slice(2);
 const fileIndex = args.indexOf("--file");
@@ -26,6 +26,13 @@ if (fileIndex >= 0) {
 }
 
 const { problems, warnings } = checkProductionConfig(env);
+// The parser above drops inline comments the way Next.js does, so look at the raw file too: a host that does not drop
+// them would store the comment as part of the value.
+if (fileIndex >= 0) {
+  for (const name of inlineCommentNames(args[fileIndex + 1]!)) {
+    problems.push(`${name} has an inline "# comment" in the file. Next.js ignores it but Vercel keeps it in the value; move the comment to its own line.`);
+  }
+}
 for (const w of warnings) console.log(`WARN  ${w}`);
 for (const p of problems) console.log(`FAIL  ${p}`);
 if (problems.length === 0) console.log("PASS  no production configuration problems found.");
