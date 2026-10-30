@@ -1,0 +1,14 @@
+{
+  "startedAt": "2026-10-30T09:44:47.292Z",
+  "endpoint": "wss://tts.us.assemblyai.com/v1/ws",
+  "probes": [
+    {
+      "probe": "bad-key",
+      "ok": true,
+      "kind": "auth",
+      "retryable": false,
+      "providerCode": 1008,
+      "elapsedMs": 971
+    }
+  ]
+}
