@@ -2,7 +2,7 @@ import "server-only";
 import WebSocket from "ws";
 import { pcm16ToWav } from "../audio/wav";
 import { env } from "../env";
-import { parseErrorFrame, protocol } from "./assemblyai-protocol";
+import { parseErrorFrame, protocol, type ProviderErrorFrame } from "./assemblyai-protocol";
 import { SpeechProviderError, type SpeechProvider, type SynthesisInput, type SynthesisResult } from "./provider";
 
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
@@ -97,7 +97,7 @@ export class AssemblyAiTtsProvider implements SpeechProvider {
       ws.on("message", (data: Buffer, isBinary: boolean) => {
         if (!isBinary) {
           const err = parseErrorFrame(data.toString("utf8"));
-          if (err) return finish(mapProviderError(err.code, err.message));
+          if (err) return finish(mapProviderError(err));
         }
         const event = spec.parseFrame(data, isBinary);
         if (event.kind === "begin") {
@@ -116,7 +116,7 @@ export class AssemblyAiTtsProvider implements SpeechProvider {
           reportedDurationMs = event.audioDurationMs;
           finish(null);
         } else if (event.kind === "error") {
-          finish(mapProviderError(event.code, event.message));
+          finish(mapProviderError(event));
         }
       });
 
@@ -156,16 +156,29 @@ export function completenessProblem(totalBytes: number, sampleRate: number, repo
   return null;
 }
 
-export function mapProviderError(code: number | string, message: string): SpeechProviderError {
+/**
+ * Turns an `Error` frame into the app's error kinds. Client-facing messages are fixed text; the provider's own wording
+ * is kept in `providerDetail` for logs. Codes are from the service's limits page (3009 new-session rate, 3005 capacity,
+ * 3006 invalid message, 3010 text backlog) and the rate-limit shape was confirmed live on 30 Oct 2026.
+ */
+export function mapProviderError(frame: ProviderErrorFrame | { code: number | string; message: string }): SpeechProviderError {
+  const { code, message } = frame;
+  const errorType = "errorType" in frame ? frame.errorType : null;
+  const retryAfterSec = "retryAfterSec" in frame ? (frame.retryAfterSec ?? undefined) : undefined;
+  const advertisedRetryable = "retryable" in frame ? frame.retryable : null;
+  const detail = message.slice(0, 200);
   const text = message.toLowerCase();
   if (code === 1008 || text.includes("unauthorized")) {
-    return new SpeechProviderError("auth", "AssemblyAI rejected the credentials.", false, code);
+    return new SpeechProviderError("auth", "AssemblyAI rejected the credentials.", false, code, undefined, detail);
   }
-  if (code === 429 || text.includes("rate limit") || text.includes("too many")) {
-    return new SpeechProviderError("rate_limited", "AssemblyAI rate limit reached.", true, code);
+  if (code === 429 || code === 3009 || errorType === "rate_limited" || text.includes("rate limit") || text.includes("too many")) {
+    return new SpeechProviderError("rate_limited", "AssemblyAI rate limit reached.", true, code, retryAfterSec, detail);
   }
-  if (code === 1011 || text.includes("internal")) {
-    return new SpeechProviderError("provider_error", "AssemblyAI reported an internal error.", true, code);
+  if (code === 1011 || code === 1012 || code === 3005 || text.includes("internal") || text.includes("capacity")) {
+    return new SpeechProviderError("provider_error", "AssemblyAI reported a temporary problem.", true, code, retryAfterSec, detail);
   }
-  return new SpeechProviderError("invalid_request", "AssemblyAI could not synthesize this text.", false, code);
+  if (advertisedRetryable === true) {
+    return new SpeechProviderError("provider_error", "AssemblyAI reported a temporary problem.", true, code, retryAfterSec, detail);
+  }
+  return new SpeechProviderError("invalid_request", "AssemblyAI could not synthesize this text.", false, code, undefined, detail);
 }
