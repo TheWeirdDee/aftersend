@@ -1,12 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
+import { siteUrl } from "@/lib/site-url";
 import "./globals.css";
 
-const appUrl = process.env.APP_URL ?? "http://localhost:3000";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(appUrl),
+  metadataBase: new URL(siteUrl()),
   title: { default: "AfterSend — A spoken notice you can correct after the link is shared", template: "%s · AfterSend" },
   description:
     "Turn important notices into spoken announcements. Correct the words, approve the new voice, and keep everyone on the same link.",
