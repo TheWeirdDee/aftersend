@@ -18,6 +18,8 @@
     "tts:smoke": "tsx --conditions=react-server scripts/tts-smoke.ts",
     "audio:inspect": "tsx scripts/inspect-audio.ts",
     "check:env": "tsx scripts/check-env.ts",
+    "env:sync": "tsx scripts/env-sync.ts",
+    "db:set-password": "tsx scripts/set-db-password.ts",
     "email:probe": "tsx --conditions=react-server scripts/email-probe.ts",
     "verify:deploy": "tsx scripts/verify-deployment.ts",
     "verify:live": "tsx scripts/live-journey.ts",
