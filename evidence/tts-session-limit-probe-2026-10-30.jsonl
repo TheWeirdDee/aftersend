@@ -1,0 +1,7 @@
+{"session":1,"result":"Begin","closeCode":1000,"ms":2024}
+{"session":2,"result":"Begin","closeCode":1000,"ms":1319}
+{"session":3,"result":"Begin","closeCode":1000,"ms":1231}
+{"session":4,"result":"Begin","closeCode":1000,"ms":1209}
+{"session":5,"result":"Begin","closeCode":1000,"ms":1266}
+{"session":6,"result":"Error","error_code":3009,"error_type":"rate_limited","retryable":true,"retry_after_seconds":17,"param":null,"error":"Too many sessions opened for this account in the last minute (allowance 5 per minute); retry in 17 s.","closeCode":3009,"ms":1076}
+{"session":7,"result":"Error","error_code":3009,"error_type":"rate_limited","retryable":true,"retry_after_seconds":16,"param":null,"error":"Too many sessions opened for this account in the last minute (allowance 5 per minute); retry in 16 s.","closeCode":3009,"ms":1037}
