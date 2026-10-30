@@ -1,26 +1,17 @@
 import { sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { json } from "@/lib/http/route";
-import { speechProvider } from "@/lib/speech";
 
 export const dynamic = "force-dynamic";
 
+/** Liveness only: the process answers and the database is reachable. Product readiness lives in /api/ready. */
 export async function GET() {
-  const checks: Record<string, string> = {};
+  let database = "ok";
   try {
-    const db = await getDb();
-    await db.execute(sql`select 1`);
-    checks.database = "ok";
+    await (await getDb()).execute(sql`select 1`);
   } catch {
-    checks.database = "error";
+    database = "error";
   }
-  try {
-    const p = speechProvider();
-    const c = p.isConfigured();
-    checks.speech = c.ok ? `ok (${p.kind})` : `unavailable: ${c.reason}`;
-  } catch {
-    checks.speech = "error";
-  }
-  const ok = checks.database === "ok";
-  return json({ ok, checks }, { status: ok ? 200 : 503 });
+  const ok = database === "ok";
+  return json({ ok, checks: { database } }, { status: ok ? 200 : 503 });
 }
