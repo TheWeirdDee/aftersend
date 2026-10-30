@@ -3,10 +3,11 @@
  * 4:00 PM correction, saves playable WAVs under evidence/raw/audio/, and records measured timings.
  * It does not judge pronunciation: a person must listen to the files.
  *
- *   ASSEMBLYAI_API_KEY=... ASSEMBLYAI_TTS_VOICES=<verified voice> npm run tts:smoke -- --runs 3
+ *   ASSEMBLYAI_API_KEY=... npm run tts:smoke -- --runs 3
  */
 import fs from "node:fs";
 import { AssemblyAiTtsProvider } from "../src/lib/speech/assemblyai";
+import { DEFAULT_ENDPOINT } from "../src/lib/speech/assemblyai-protocol";
 import { inspectAudio } from "../src/lib/audio/wav";
 import { sha256Hex } from "../src/lib/ids";
 import { toSpeechText } from "../src/lib/notices/normalize-speech";
@@ -63,7 +64,7 @@ async function main() {
     }
   }
   const out = `evidence/tts-smoke-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
-  fs.writeFileSync(out, JSON.stringify({ endpoint: process.env.ASSEMBLYAI_TTS_ENDPOINT ?? "wss://streaming-tts.assemblyai.com/v1/ws", inputs, results }, null, 2));
+  fs.writeFileSync(out, JSON.stringify({ endpoint: process.env.ASSEMBLYAI_TTS_ENDPOINT ?? DEFAULT_ENDPOINT, inputs, results }, null, 2));
   console.log(`Saved ${out}. Listen to every file before recording it as correct.`);
 }
 
