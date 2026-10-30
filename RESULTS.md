@@ -2,6 +2,49 @@
 
 This file holds measurements only. Targets and plans live in `docs/`. Every number below names how it was taken.
 
+## Fourth pass, 30 October 2026: release preparation
+
+Observed on one Windows 11 machine, Node 24. **No real Supabase, Resend, Vercel or AssemblyAI account was used, and no replacement AssemblyAI key exists, so nothing in this pass is live evidence.** What it did: audit the deployment design against the implementation and the providers' own documentation, fix what was wrong, and build and rehearse the tools that will produce live evidence.
+
+### Defects found and fixed
+
+| # | Defect | Effect if shipped | Fix | Test |
+|---|---|---|---|---|
+| 1 | `layout.tsx` fell back to `http://localhost:3000` for page metadata when `APP_URL` was unset | Link-preview images and URLs pointed at localhost on a first deploy | `siteUrl()`: `APP_URL`, then Vercel's production address, then the deployment address | `production-config.test.ts` |
+| 2 | `vercel-build` migrated whenever a database URL was present | A preview build that inherited the production URL would migrate production | `--production-only`: skipped on preview/development builds | `migrate-script.test.ts` (real process) |
+| 3 | `--if-configured` skipped migrations when no database URL existed, even on a production build | A production deploy with no database would succeed and then fail at runtime | A production build with no database URL fails | `migrate-script.test.ts` |
+| 4 | Migrations ran through whatever `DATABASE_URL` was, with no lock | Two builds starting together could race on the migration journal; the documented URL was the transaction pooler, where a lock cannot be held | Advisory lock; `MIGRATION_DATABASE_URL` (session pooler) preferred; a warning when falling back to port 6543 | Applying twice at once leaves each migration applied exactly once (`hosted-postgres.test.ts`). **The lock itself is not proven: see below.** |
+| 5 | Hosted database connections: no TLS requirement, no idle or connect timeout | Plaintext to a hosted database; hung instances on a slow database | TLS for every non-local host (`DATABASE_SSL=disable` to override), 20 s idle and 10 s connect timeouts | `production-config.test.ts` (TLS rule only) |
+| 6 | The test speech provider, the file mailbox and insecure cookies were guarded only by opt-in variables | One stray variable in production would leave a test double or a non-Secure cookie live | Refused outright on hosted production (`VERCEL_ENV=production` or `AFTERSEND_ENV=production`) whatever the variables say; `/api/ready` also reports the full configuration check there | `production-config.test.ts` |
+| 7 | Command-line scripts did not read `.env.local` (only Next.js does) | A key saved in `.env.local` would have been silently ignored by `npm run tts:smoke` | Scripts load `.env.local` (shell values win, blanks ignored) | loader check, `env-file` parser test |
+| 8 | The cleanup cron route had no `maxDuration` | A large cleanup could be cut off at the default limit | `maxDuration = 60` | none (platform setting) |
+| 9 | My own `check:env` parser read `KEY=   # comment` as a value | Missing keys looked present | Matches dotenv: a comment-only value is blank | `production-config.test.ts` |
+| 10 | My own `verify:live` kept going after the target failed the live-capability check | It would have sent email and asked for codes against a test deployment | Aborts before touching the target; writes no report | run against a local test server (refused) |
+
+### Platform facts checked against documentation (and what follows)
+
+Vercel Hobby functions: 300 s with Fluid compute, 60 s without, so the 60 s route and 50 s deadline fit either way. Hobby cron: once a day, production deployments only. Supabase: transaction pooler for the app (6543), session pooler for migrations (5432), direct connection is IPv6-only on the free plan. Resend: `onboarding@resend.dev` reaches only the account owner; a verified domain is required to mail anyone else; free quota 100 a day. Sources are linked in `docs/DEPLOYMENT.md`.
+
+### Automated tests (final code)
+
+| Suite | Result | Command |
+|---|---|---|
+| Unit + integration (Vitest) | **216 passed, 0 failed** (18 files) | `npm test` |
+| Browser (Playwright, production build) | **49 passed, 0 failed** (47 desktop + 2 mobile), one full run on the final build | `npx next build && npm run test:e2e` |
+| Typecheck, lint, production build | clean | `npm run typecheck`, `npm run lint`, `npx next build` |
+
+### Mutation checks on the new guards
+
+Ten defects applied one at a time and the relevant tests re-run. **Nine were caught** (speech guard removed, mailbox guard removed, cookie opt-out honoured on production, test flags allowed, local storage allowed, preview builds migrating, production build skipping a missing database, TLS never required, `siteUrl` ignoring `APP_URL`). **One was not: removing the migration lock.** The in-process server used for the wire-protocol tests accepts one connection at a time, so it serialises two migrators with or without the lock. The lock is therefore **unverified**; it needs a real Postgres (or Supabase) to demonstrate.
+
+### Rehearsal of the live journey (not live evidence)
+
+`npm run verify:live -- http://localhost:3299 --rehearsal --outbox <dir>` against a local production build with the test doubles: **13 of 13 steps passed** (sign-up, create, generate, approve, anonymous open with cache headers, correction at the same link, superseded audio refused, withdrawal, session loss, recovery by email, a second account refused, sign-out everywhere). The report is `evidence/rehearsal-journey-2026-10-30T10-49-43-115Z.json` and is labelled as a rehearsal. In live mode the same script refused a test-double target and sent nothing. `scripts/verify-deployment.ts` was run against the same local build earlier (13 of 15, the two expected failures being the test-provider guards).
+
+### Not done (needs credentials or authorisation)
+
+Real AssemblyAI verification (both voices, repeats, long notice, timeout probe, the server-reported-duration assumption), real Resend delivery, a real Supabase database and private bucket, deployment, the live journey, direct-access tests on superseded storage objects, and the human listening review. Exact steps are in `docs/DEPLOYMENT.md` and `docs/RELEASE_RUNBOOK.md`.
+
 ## Third pass, 30 October 2026: email accounts and release preparation
 
 Observed on one Windows 11 machine, Node 24. Nothing here touched real Supabase, Resend, Vercel or a replacement AssemblyAI key; none exists yet.
