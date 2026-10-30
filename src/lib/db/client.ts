@@ -15,11 +15,11 @@ const holder: Holder = (g.__aftersendDb ??= { db: null, close: null });
 const migrationsFolder = path.join(process.cwd(), "drizzle");
 
 async function connect(): Promise<Db> {
-  const { DATABASE_URL, PGLITE_DIR } = env();
+  const { DATABASE_URL, PGLITE_DIR, DATABASE_POOL_MAX } = env();
   if (DATABASE_URL && /^postgres(ql)?:\/\//.test(DATABASE_URL)) {
     const { default: postgres } = await import("postgres");
     const { drizzle } = await import("drizzle-orm/postgres-js");
-    const client = postgres(DATABASE_URL, { max: 5, prepare: false });
+    const client = postgres(DATABASE_URL, { max: DATABASE_POOL_MAX, prepare: false });
     holder.close = async () => client.end();
     return drizzle(client, { schema }) as unknown as Db;
   }
