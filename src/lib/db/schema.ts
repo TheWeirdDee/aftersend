@@ -84,6 +84,12 @@ export const noticeRevisions = pgTable(
     audioAssetId: text("audio_asset_id"),
     // SHA-256 over provider + model + voice + speech text: the idempotency key for synthesis.
     synthesisKey: text("synthesis_key").notNull(),
+    // Bumped on every edit. Saves and approvals name the version they saw, so a stale writer is refused.
+    version: integer("version").notNull().default(1),
+    // Attempt id of the worker that currently owns synthesis. Only that worker may complete or fail it.
+    synthesisClaim: text("synthesis_claim"),
+    // Client-chosen id that makes creating a draft idempotent when a response is lost and retried.
+    clientToken: text("client_token"),
     status: text("status", {
       enum: ["draft", "queued", "synthesizing", "preview_ready", "failed", "published", "superseded", "discarded"],
     })
@@ -99,6 +105,9 @@ export const noticeRevisions = pgTable(
     uniqueIndex("revisions_notice_number_idx")
       .on(t.noticeId, t.revisionNumber)
       .where(sql`${t.revisionNumber} is not null`),
+    uniqueIndex("revisions_notice_client_token_idx")
+      .on(t.noticeId, t.clientToken)
+      .where(sql`${t.clientToken} is not null`),
   ],
 );
 
