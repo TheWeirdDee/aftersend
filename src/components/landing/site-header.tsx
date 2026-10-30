@@ -10,6 +10,7 @@ const NAV = [
   { href: "/#how", label: "How it works" },
   { href: "/demo", label: "Live demo" },
   { href: "/#faq", label: "FAQ" },
+  { href: "/signin", label: "Sign in" },
 ];
 
 export function AnnouncementBar() {
