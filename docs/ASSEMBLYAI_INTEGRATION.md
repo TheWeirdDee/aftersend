@@ -42,6 +42,21 @@ Tested against a local server that speaks the documented frames (`tests/unit/ass
 
 Retries and the overall deadline are in the revision service (`docs/ARCHITECTURE.md` section 3). The unproven assumption behind the completeness check is that `FlushDone.audio_duration_ms` equals the audio actually streamed, as in the quickstart's example output; confirm it with a live run and loosen `completenessProblem` if the real service differs.
 
+## Live verification tooling (third pass)
+
+`npm run tts:smoke` now covers everything the release needs, within a request budget (default 14 syntheses; it refuses to start if the plan exceeds it):
+
+```
+ASSEMBLYAI_API_KEY=... npm run tts:smoke -- --runs 3 --long --timeout-probe   # both voices x 3 runs x (original, corrected, ~1 800-char notice) = 18 requests: raise --max-requests or trim
+ASSEMBLYAI_API_KEY=... npm run tts:smoke -- --runs 3                           # both voices x 3 runs x 2 notices = 12 requests
+ASSEMBLYAI_API_KEY=... npm run tts:smoke -- --runs 1 --long --timeout-probe   # 7 requests
+npm run tts:smoke -- --bad-key-probe                                           # no key needed, no credits
+```
+
+It records, per request: time to first audio, total time, decoded duration, **the duration the provider itself reported** (and the difference, which is the evidence for or against the completeness check's assumption), the request id, the model and the file hash. A timeout probe gives one attempt 150 ms and expects a retryable `timeout`. The summary line states that the human listening review is not done.
+
+Run on 30 Oct with no credits: the bad-key probe. An invalid key is refused as non-retryable `auth` (provider code 1008) in under a second, which is the live confirmation that the adapter's auth mapping matches what the service really sends. Everything else needs a valid key.
+
 ## Key handling
 
 The key is read only by `src/lib/speech/assemblyai.ts` on the server and sent only in the `Authorization` header. It is not in URLs, frames, logs, error messages, evidence files or the client bundle (checked 30 Oct). The key used for the 30 Oct run was pasted into a chat and must be treated as compromised: revoke it in the AssemblyAI dashboard and issue a new one.
