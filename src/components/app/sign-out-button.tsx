@@ -16,7 +16,7 @@ export function SignOutButton({ hasEmail }: { hasEmail: boolean }) {
       onClick={async () => {
         const message = hasEmail
           ? "Sign out of this browser? You can sign back in with your email at any time. Published links keep working."
-          : "Leave this workspace? This workspace is not connected to an email, so this browser will lose access to its notices for good. Published links keep working.";
+          : "Leave this guest session? It is not saved to an email, so this browser will lose the ability to update or withdraw its announcements. Published links keep working. Save your account first to keep control.";
         if (!confirm(message)) return;
         setBusy(true);
         try {
@@ -31,7 +31,7 @@ export function SignOutButton({ hasEmail }: { hasEmail: boolean }) {
         "Sign out"
       ) : (
         <>
-          Leave<span className="hidden sm:inline">&nbsp;workspace</span>
+          Leave<span className="hidden sm:inline">&nbsp;guest session</span>
         </>
       )}
     </button>
