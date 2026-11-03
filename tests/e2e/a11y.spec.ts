@@ -14,15 +14,14 @@ test("editor, preview, notice detail, listener and withdrawn pages have no detec
   await startDemo(page);
   await scan(page, "editor (first version)");
 
-  await page.getByRole("button", { name: /Generate preview/ }).first().click();
-  await expect(page.getByRole("status").filter({ hasText: "Ready to preview" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("status").filter({ hasText: "Ready to listen" })).toBeVisible({ timeout: 40_000 });
   await scan(page, "editor (preview ready)");
 
-  await page.getByRole("button", { name: "Play audio preview" }).click();
-  const confirm = page.getByLabel(/I listened to the preview/);
+  await page.getByRole("button", { name: "Play spoken preview" }).click();
+  const confirm = page.getByLabel(/I listened to this preview/);
   await expect(confirm).toBeEnabled({ timeout: 30_000 });
   await confirm.check();
-  await page.getByRole("button", { name: /Approve and publish/ }).first().click();
+  await page.getByRole("button", { name: /Publish announcement/ }).first().click();
   await expect(page).toHaveURL(/published=1$/);
   await scan(page, "notice detail");
   const url = await publicUrl(page);
@@ -31,10 +30,10 @@ test("editor, preview, notice detail, listener and withdrawn pages have no detec
   await listener.goto(url);
   await scan(listener, "listener");
 
-  await page.getByRole("link", { name: /Correct this notice/ }).click();
-  const text = page.getByLabel("Notice text");
+  await page.getByRole("link", { name: /Update this announcement/ }).click();
+  const text = page.getByLabel("Announcement", { exact: true });
   await text.fill((await text.inputValue()).replace("3:00 PM", "4:00 PM"));
-  await expect(page.getByText("Draft saved")).toBeVisible();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   await scan(page, "editor (correction with diff)");
   await page.getByLabel("Title").fill("Trip on 05/06/26");
   await expect(page.locator("#title-problem")).toBeVisible();
@@ -42,7 +41,7 @@ test("editor, preview, notice detail, listener and withdrawn pages have no detec
 
   page.once("dialog", (d) => d.accept());
   await page.goto(page.url().replace(/\/edit$/, ""));
-  await page.getByRole("button", { name: "Withdraw notice" }).click();
+  await page.getByRole("button", { name: "Withdraw announcement" }).click();
   await expect(page.getByText(/^Withdrawn /)).toBeVisible();
   await listener.reload();
   await scan(listener, "withdrawn listener");
