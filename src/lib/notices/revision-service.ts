@@ -26,6 +26,11 @@ import { isValidTimezone } from "./validation";
 import { toSpeechText } from "./normalize-speech";
 
 const EDITABLE: NoticeRevision["status"][] = ["draft", "failed", "preview_ready"];
+/**
+ * Text may also change while speech is being prepared: that is what lets the editor refresh the spoken preview on its own
+ * as someone types. The edit supersedes the in-flight attempt (see updateDraft), which then cannot attach its audio.
+ */
+const EDITABLE_WHILE_PREPARING: NoticeRevision["status"][] = [...EDITABLE, "synthesizing"];
 const MAX_RETRIES = 2;
 /** Time reserved after the provider returns for validation, storage and the database commit: 10% of the deadline, at most 5 s. */
 const postSynthesisReserveMs = () => Math.min(5_000, env().SYNTHESIS_DEADLINE_MS * 0.1);
@@ -222,7 +227,7 @@ export async function updateDraft(
   const db = await getDb();
   const { revision, notice } = await ownedRevision(db, ownerId, revisionId);
   if (notice.state === "withdrawn") throw new AppError("notice_withdrawn", "This notice has been withdrawn.");
-  if (!EDITABLE.includes(revision.status)) {
+  if (!EDITABLE_WHILE_PREPARING.includes(revision.status)) {
     throw new AppError("conflict", "This revision can no longer be edited.", false, { reason: "locked", status: revision.status });
   }
   if (input.expectedVersion !== undefined && input.expectedVersion !== revision.version) throw staleVersion(revision.version);
@@ -258,7 +263,9 @@ export async function updateDraft(
         modelId: provider.modelId,
         synthesisKey,
         confirmedCriticalFacts: textChanged ? false : (input.confirmedCriticalFacts ?? revision.confirmedCriticalFacts),
-        ...(contentChanged ? { status: "draft" as const, audioAssetId: null, generatedAt: null, requestId: null } : {}),
+        // A changed script drops the old audio and any running attempt's claim, so that attempt's result is refused
+        // when it arrives (generatePreview attaches audio only while it still holds the claim for the same key).
+        ...(contentChanged ? { status: "draft" as const, audioAssetId: null, generatedAt: null, requestId: null, synthesisClaim: null } : {}),
         version: revision.version + 1,
         updatedAt: new Date(),
       })
@@ -266,7 +273,7 @@ export async function updateDraft(
       .where(
         and(
           eq(noticeRevisions.id, revisionId),
-          inArray(noticeRevisions.status, EDITABLE),
+          inArray(noticeRevisions.status, EDITABLE_WHILE_PREPARING),
           eq(noticeRevisions.version, revision.version),
         ),
       )
@@ -467,7 +474,7 @@ export async function generatePreview(ownerId: string, revisionId: string) {
         .where(eq(synthesisAttempts.id, attemptId));
       return updated.length > 0;
     });
-    if (!committed) throw new AppError("conflict", "The text changed while audio was generating. Generate again.", true);
+    if (!committed) throw new AppError("conflict", "The announcement changed while the voice was being prepared, so that audio was discarded.", true, { reason: "superseded_audio" });
     log("info", "synthesis.succeeded", { revisionId, attemptId, retries, providerLatencyMs: latency, bytes: result.audio.byteLength, providerRequestId: result.providerRequestId });
     return { status: "preview_ready" as const, reused: false, latencyMs: latency };
   } catch (err) {
