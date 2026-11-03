@@ -20,7 +20,8 @@ describe.skipIf(!url)("concurrent migrators on a real Postgres", () => {
       await Promise.all([applyMigrations(target.toString()), applyMigrations(target.toString())]);
       const check = postgres(target.toString(), { max: 1, prepare: false });
       try {
-        const [{ n }] = (await check`select count(*)::int as n from drizzle.__drizzle_migrations`) as unknown as { n: number }[];
+        const rows = (await check`select count(*)::int as n from drizzle.__drizzle_migrations`) as unknown as { n: number }[];
+        const n = rows[0]!.n;
         const { readFileSync } = await import("node:fs");
         const journal = (JSON.parse(readFileSync("drizzle/meta/_journal.json", "utf8")) as { entries: unknown[] }).entries.length;
         expect(n).toBe(journal);
