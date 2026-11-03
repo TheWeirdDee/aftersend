@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth/session";
 import { listNotices } from "@/lib/notices/revision-service";
-import { AppHeader } from "@/components/app/app-header";
+import { SiteHeader } from "@/components/landing/site-header";
 import { EmailSignIn } from "@/components/app/email-sign-in";
 
 export const dynamic = "force-dynamic";
@@ -17,8 +17,8 @@ export default async function SignInPage() {
 
   return (
     <>
-      <AppHeader />
-      <main id="main" className="mx-auto grid min-h-[calc(100dvh-64px)] max-w-[1180px] place-items-center px-4 py-16 sm:px-6">
+      <SiteHeader />
+      <main id="main" className="mx-auto grid min-h-[calc(100dvh-65px)] max-w-[1180px] place-items-center px-4 py-16 sm:px-6">
         <div className="w-full max-w-md">
           <p className="eyebrow">Sign in or save your account</p>
           <h1 className="mt-4 text-[clamp(1.85rem,5vw,2.5rem)] leading-[1.05] font-semibold tracking-[-0.04em]">Use your email to get back to your announcements.</h1>
