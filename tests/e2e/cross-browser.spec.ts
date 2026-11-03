@@ -6,11 +6,11 @@ import { generateListenApprove, publicUrl, startDemo } from "./helpers";
  * does with the audio, not just that the server returned it: the preview plays through, the listening gate opens only
  * then, and the published page plays and pauses. The audio is the labelled test tone, so this says nothing about speech quality.
  */
-/** Whether this browser build can play a known-good WAV made in the page, independent of AfterSend's server. */
+/** Whether this browser build can play a known-good WAV made in the page, from start to end, independent of AfterSend's server. */
 async function engineCanPlayWav(page: import("@playwright/test").Page) {
   await page.goto("/api/health");
   return page.evaluate(async () => {
-    const n = 800;
+    const n = 4000;
     const buf = new ArrayBuffer(44 + n * 2);
     const v = new DataView(buf);
     const w = (o: number, s: string) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
@@ -27,19 +27,25 @@ async function engineCanPlayWav(page: import("@playwright/test").Page) {
     v.setUint16(34, 16, true);
     w(36, "data");
     v.setUint32(40, n * 2, true);
-    const a = new Audio();
-    return new Promise<boolean>((resolve) => {
-      a.onerror = () => resolve(false);
-      a.onloadedmetadata = () => resolve(true);
-      a.src = URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
-      setTimeout(() => resolve(false), 5000);
-    });
+    const url = URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
+    // Loading is not enough: a machine with no sound device (a CI runner) loads audio fine and then fails to open the output, and a
+    // flaky device lets the first stream through and refuses the next. So two plays in a row must both reach the end.
+    const playOnce = () =>
+      new Promise<boolean>((resolve) => {
+        const a = new Audio();
+        a.onerror = () => resolve(false);
+        a.onended = () => resolve(true);
+        a.onloadedmetadata = () => void a.play().catch(() => resolve(false));
+        a.src = url;
+        setTimeout(() => resolve(false), 6000);
+      });
+    return (await playOnce()) && (await playOnce());
   });
 }
 
 test("the preview plays through, the gate opens, and the listener page plays and pauses", async ({ page, context }) => {
   // Playwright's WebKit build for Windows cannot play any audio (even this in-page WAV fails with code 4), so it says nothing about
-  // Safari. Such an engine is skipped, loudly, rather than failing or being counted as a pass.
+  // Safari, and a runner with no sound device cannot open any audio output. Such an engine is skipped, loudly, rather than failing or being counted as a pass.
   test.skip(!(await engineCanPlayWav(page)), "this browser build cannot play a known-good WAV, so playback cannot be tested in it");
   await startDemo(page);
   await generateListenApprove(page, /Publish announcement/);
