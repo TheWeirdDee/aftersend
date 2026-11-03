@@ -1,0 +1,24 @@
+{
+  "clips": [
+    {
+      "file": "pickup-3pm.wav",
+      "spoken": "Early pickup on Friday. Classes end early on Friday for a staff training day. Pickup is at three p.m. at the main gate.",
+      "voice": "aai-jane",
+      "provider": "AssemblyAI",
+      "durationMs": 7680,
+      "bytes": 368684,
+      "sha256": "b3934ab178ab12b11d3a1e3c6399883aa407c6410a09d85d2d42c23ba9b961db",
+      "recordedAt": "2026-11-03T13:59:07.108Z"
+    },
+    {
+      "file": "pickup-4pm.wav",
+      "spoken": "Early pickup on Friday. Classes end early on Friday for a staff training day. Pickup is at four p.m. at the main gate.",
+      "voice": "aai-jane",
+      "provider": "AssemblyAI",
+      "durationMs": 7760,
+      "bytes": 372524,
+      "sha256": "3db3b9e9bb1708bc21a91cb260e5862d5d5377f525d9f332855ea6e535fba3e9",
+      "recordedAt": "2026-11-03T13:59:10.407Z"
+    }
+  ]
+}
