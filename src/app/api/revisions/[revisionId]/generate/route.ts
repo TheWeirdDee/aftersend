@@ -14,6 +14,7 @@ export const POST = route<{ revisionId: string }>(
     const user = await requireUser();
     const { revisionId } = await params;
     const limit = user.kind === "demo" ? env().GUEST_SYNTHESIS_LIMIT_PER_HOUR : env().SYNTHESIS_LIMIT_PER_HOUR;
+    if (user.kind === "demo") await enforceRateLimit("synth-guests-day", env().GUEST_SYNTHESIS_PER_DAY, 24 * 3600_000);
     await enforceRateLimit(`synth-user:${user.id}`, limit, 3600_000);
     await enforceRateLimit(`synth-ip:${clientIp(req)}`, limit * 2, 3600_000);
     return json(await generatePreview(user.id, revisionId));
