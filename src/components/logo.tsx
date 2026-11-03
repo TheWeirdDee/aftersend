@@ -13,11 +13,12 @@ export function LogoMark({ className = "size-7", title }: { className?: string; 
   );
 }
 
-export function Wordmark({ className = "" }: { className?: string }) {
+/** `markOnlyBelow` hides the name on narrow screens, where a header has no room for it beside its buttons. */
+export function Wordmark({ className = "", markOnlyBelow = false }: { className?: string; markOnlyBelow?: boolean }) {
   return (
     <span className={`inline-flex items-center gap-2 text-fg ${className}`}>
       <LogoMark className="size-7" />
-      <span className="font-display text-[20px] font-semibold tracking-[-0.04em]">AfterSend</span>
+      <span className={`font-display text-[20px] font-semibold tracking-[-0.04em] ${markOnlyBelow ? "hidden min-[440px]:inline" : ""}`}>AfterSend</span>
     </span>
   );
 }
