@@ -5,6 +5,8 @@ import { formatDuration } from "@/lib/format";
 import { Pause, Play } from "./icons";
 
 const RATES = [0.75, 1, 1.25, 1.5];
+/** A request for the audio can be cut off (a dropped connection, a server restarting). The player asks again this many times before giving up. */
+const MAX_AUTO_RELOADS = 3;
 /** Share of the audio that must actually have played before it counts as listened to. */
 export const LISTENED_COVERAGE = 0.9;
 
@@ -41,6 +43,31 @@ export function AudioPlayer({
   const [state, setState] = useState<"idle" | "loading" | "error">("idle");
   const [coverage, setCoverage] = useState(0);
   const reported = useRef(false);
+  const reloads = useRef(0);
+  const reloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (reloadTimer.current) clearTimeout(reloadTimer.current);
+  }, []);
+
+  /** Requests the file again. The listened-to record is kept: only ranges that were really played ever count. */
+  const reload = () => {
+    const a = ref.current;
+    if (!a) return;
+    setState("loading");
+    a.load();
+  };
+
+  const onMediaError = () => {
+    setPlaying(false);
+    if (reloads.current < MAX_AUTO_RELOADS) {
+      reloads.current += 1;
+      setState("loading");
+      reloadTimer.current = setTimeout(reload, 400 * reloads.current);
+    } else {
+      setState("error");
+    }
+  };
 
   // Skipping ahead does not count: `played` only records ranges the browser actually played through.
   const checkCoverage = (a: HTMLAudioElement) => {
@@ -64,8 +91,10 @@ export function AudioPlayer({
         setState("loading");
         await a.play();
         setState("idle");
-      } catch {
-        setState("error");
+      } catch (e) {
+        // play() is rejected with AbortError when the element is reloaded or paused while starting; that is not a failure.
+        if (e instanceof DOMException && e.name === "AbortError") setState("idle");
+        else setState("error");
       }
     } else a.pause();
   };
@@ -90,11 +119,11 @@ export function AudioPlayer({
           if (onListened) checkCoverage(e.currentTarget);
         }}
         onWaiting={() => setState("loading")}
-        onPlaying={() => setState("idle")}
-        onError={() => {
-          setState("error");
-          setPlaying(false);
+        onPlaying={() => {
+          reloads.current = 0;
+          setState("idle");
         }}
+        onError={onMediaError}
       />
       <div className="flex items-center gap-3.5">
         <button
@@ -153,9 +182,27 @@ export function AudioPlayer({
           {coverage >= LISTENED_COVERAGE ? "Listened to the whole preview" : `Listened to ${Math.floor(coverage * 100)}%: play it through to approve`}
         </p>
       ) : null}
-      <p role="status" aria-live="polite" className={state === "error" ? "mt-3 text-[13px] text-danger" : "sr-only"}>
-        {state === "error" ? "This audio can't be played right now. The full written notice is below." : state === "loading" ? "Loading audio" : ""}
-      </p>
+      <div role="status" aria-live="polite" className={state === "error" ? "mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-danger" : "sr-only"}>
+        {state === "error" ? (
+          <>
+            <span>This audio could not be loaded.</span>
+            <button
+              type="button"
+              className="text-fg underline underline-offset-4"
+              onClick={() => {
+                reloads.current = 0;
+                reload();
+              }}
+            >
+              Try again
+            </button>
+          </>
+        ) : state === "loading" ? (
+          "Loading audio"
+        ) : (
+          ""
+        )}
+      </div>
     </div>
   );
 }
