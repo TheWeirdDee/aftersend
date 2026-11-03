@@ -65,6 +65,24 @@ A claim older than `deadline + 15 s` is presumed abandoned and may be taken over
 
 If the browser disconnects mid-request the server keeps going and the result is stored. Reopening the editor shows it. On platforms that terminate the function on disconnect, the claim simply goes stale and the draft can be generated again.
 
+### 3a. Automatic speech while editing
+
+The editor has no Generate button. Each edit is saved (700 ms debounce, one save at a time, newest last: `serial-saver.ts`), the spoken preview is marked out of date at once, and after the person has paused for 1.8 s one speech request is made for exactly what was saved (`src/lib/client/speech-sync.ts`, unit-tested with fake timers). Rules that bound cost and keep results in order:
+
+- **One request at a time.** An edit made while a request runs does not start a second one; when the running one ends the debounce starts again and a single follow-up covers everything typed meanwhile.
+- **A newer edit always wins, on the server.** `updateDraft` accepts edits while a revision is `synthesizing`; when the spoken script changes it moves the revision back to `draft` and clears `synthesis_claim`. The in-flight attempt can then no longer attach its audio, because the commit is conditioned on status, `synthesis_key` and the claim; it records `cancelled` and answers `conflict / superseded_audio`, which the editor treats as normal (`auto-speech.test.ts`). The client also ignores any result for text that has since changed.
+- **Deduplication.** The same text, voice and model with audio already attached is answered from the existing audio (`reused`); a concurrent identical request answers `synthesis_in_progress`.
+- **No retry loops.** A script that failed is not requested again until it changes or the person presses Retry audio.
+- **Nothing is requested** for an empty or very short text, an ambiguous or impossible date (including a weekday that does not match its written date), a voice that is unavailable, or an unchanged correction.
+- **Rate limits.** Per user and per IP per hour (`SYNTHESIS_LIMIT_PER_HOUR`), a lower hourly limit for guests (`GUEST_SYNTHESIS_LIMIT_PER_HOUR`) and a shared daily ceiling for all guests (`GUEST_SYNTHESIS_PER_DAY`).
+- **Approval is unchanged.** Publishing still needs a preview of the saved version, played through in the browser (the listening gate), a confirmation, and the saved version number; the public link keeps serving the previous approved version until then.
+
+The request runs inside the HTTP call (up to 60 s), as before. Provider limits (five new sessions per minute on the free plan) surface as a Retry audio message with the wait the provider reported.
+
+### 3b. Guests
+
+A guest is an ordinary user row of kind `demo` with no email, a 30-day session and a sample announcement computed from today's date. What a guest publishes is a real announcement. A guest can be saved to an email at any time: the same code-and-session rule as before applies (the code must be requested and verified from the guest's own browser), and the user becomes an ordinary account with its announcements intact, or, if the address already has an account, its announcements move into it. Guest limits are above. The cleanup removes a guest workspace only once its sessions have expired and it is at least 7 days old (§6).
+
 ### The adapter
 
 `src/lib/speech/assemblyai-protocol.ts` holds the wire format, taken from AssemblyAI's Streaming TTS quickstart. `assemblyai.ts` rejects: invalid base64 (never decoded loosely), a stream that closes before `FlushDone`, no audio, audio ending mid-sample, and audio whose length disagrees with the `audio_duration_ms` the server reported (a lost frame). Each of these is a retryable `provider_error`/`network` failure. Auth and invalid-request errors are not retried. Error text from the provider is never forwarded to the client and the API key never appears in URLs, frames, messages or logs.
@@ -101,7 +119,7 @@ The previous policy, `public, max-age=31536000, immutable`, let a browser or sha
 - **Staging previews older than 24 h.** The revision is detached first, conditioned on that exact asset still being its preview, then the row is marked deleted and the bytes removed unless another live row points at the same object. A preview replaced or approved while cleanup runs is left alone (`reliability.test.ts`).
 - **Abandoned published copies** (`content_ready = false`, older than 1 h).
 - **Expired sessions**, **rate-limit rows older than 24 h** and **sign-in challenges** that expired more than an hour ago.
-- **Abandoned demo workspaces.** A demo workspace is anonymous and its only key is a 30-day session cookie. Once every session has expired and the workspace is at least 7 days old, the whole workspace goes: notices, revisions, audio rows and the stored bytes (staging and published), and with them its public links. Stored bytes are deleted first, so a storage failure leaves the workspace whole for the next run instead of orphaning objects. At most 25 workspaces per run. A non-demo user, or any user with an email, is never removed (`demo-cleanup.test.ts`).
+- **Abandoned guest workspaces** (kind `demo`). A guest workspace is anonymous and its only key is a 30-day session cookie. Once every session has expired and the workspace is at least 7 days old, the whole workspace goes: notices, revisions, audio rows and the stored bytes (staging and published), and with them its public links. Stored bytes are deleted first, so a storage failure leaves the workspace whole for the next run instead of orphaning objects. At most 25 workspaces per run. A non-demo user, or any user with an email, is never removed (`demo-cleanup.test.ts`).
 
 Ready published audio is never removed: superseded versions are the notice's history. Workspace recovery is by verified email (see §8A).
 
