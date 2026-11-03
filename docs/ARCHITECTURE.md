@@ -101,8 +101,15 @@ The previous policy, `public, max-age=31536000, immutable`, let a browser or sha
 - **Staging previews older than 24 h.** The revision is detached first, conditioned on that exact asset still being its preview, then the row is marked deleted and the bytes removed unless another live row points at the same object. A preview replaced or approved while cleanup runs is left alone (`reliability.test.ts`).
 - **Abandoned published copies** (`content_ready = false`, older than 1 h).
 - **Expired sessions**, **rate-limit rows older than 24 h** and **sign-in challenges** that expired more than an hour ago.
+- **Abandoned demo workspaces.** A demo workspace is anonymous and its only key is a 30-day session cookie. Once every session has expired and the workspace is at least 7 days old, the whole workspace goes: notices, revisions, audio rows and the stored bytes (staging and published), and with them its public links. Stored bytes are deleted first, so a storage failure leaves the workspace whole for the next run instead of orphaning objects. At most 25 workspaces per run. A non-demo user, or any user with an email, is never removed (`demo-cleanup.test.ts`).
 
-Ready published audio is never removed: superseded versions are the notice's history. There is no workspace recovery (see §9).
+Ready published audio is never removed: superseded versions are the notice's history. Workspace recovery is by verified email (see §8A).
+
+### 6a. Storage deadlines and the source link
+
+Every storage request (upload, download, delete) runs under a hard deadline (`STORAGE_TIMEOUT_MS`, default 10 s) through an abort signal and an independent timer, so an adapter that ignores the signal still cannot hold a request open. During generation the deadline is clamped to what is left of the one request deadline (`SYNTHESIS_DEADLINE_MS`) less a moment to record the outcome, and a storage timeout fails that attempt as a retryable `timeout`, with the outcome written to `synthesis_attempts`. During approval a timeout becomes a retryable 503 and the revision stays approvable. Readiness probes use their own random object key, so concurrent checks cannot overwrite or delete each other's object.
+
+A notice's source link is stored on each revision (`notice_revisions.source_url`) and copied onto the notice, the value listeners see, in the same transaction that promotes the revision. A correction therefore starts from the live link, can change or remove it, and a half-edited or discarded correction never alters the public page.
 
 ## 7. Readiness
 
