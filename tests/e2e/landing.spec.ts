@@ -6,7 +6,7 @@ test("the hero is visible with reduced motion", async ({ browser }) => {
   const page = await ctx.newPage();
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await expect(page.getByTestId("correction-demo")).toBeVisible();
+  await expect(page.getByTestId("before-after")).toBeVisible();
   await ctx.close();
 });
 
@@ -14,20 +14,26 @@ test("the landing page reads in full without JavaScript", async ({ browser }) =>
   const ctx = await browser.newContext({ javaScriptEnabled: false });
   const page = await ctx.newPage();
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("One announcement. One link.");
-  await expect(page.getByRole("heading", { name: /Built for the office that sends the notice/ })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("One announcement link, even when pickup time changes.");
+  await expect(page.getByRole("heading", { name: "What AfterSend will not do." })).toBeVisible();
   await expect(page.getByTestId("demo-time")).toHaveText("3:00 PM");
   await ctx.close();
 });
 
-test("the call to action leads to the guest start page", async ({ page }) => {
+test("the call to action starts writing on the sample announcement, with no detour", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("link", { name: /Create an announcement/ }).first().click();
-  await expect(page).toHaveURL(/\/demo$/);
-  await expect(page.getByRole("button", { name: "Start writing" })).toBeVisible();
+  await page.getByRole("button", { name: "Create an announcement" }).first().click();
+  await expect(page).toHaveURL(/\/app\/notices\/ntc_[a-f0-9]+\/edit$/);
+  await expect(page.getByLabel("Announcement", { exact: true })).toBeEditable();
 });
 
-test("the hero demonstration changes 3 PM to 4 PM while the link stays the same", async ({ page }) => {
+test("/demo, kept for old links, lands on the one homepage", async ({ page }) => {
+  await page.goto("/demo");
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("One announcement link, even when pickup time changes.");
+});
+
+test("the correction example changes 3 PM to 4 PM while the link stays the same", async ({ page }) => {
   await page.goto("/");
   const link = page.getByTestId("demo-link");
   const before = await link.textContent();
@@ -45,7 +51,7 @@ test("the hero demonstration changes 3 PM to 4 PM while the link stays the same"
 
 test("every internal link on public pages resolves", async ({ page, request }) => {
   const seen = new Set<string>();
-  for (const path of ["/", "/demo"]) {
+  for (const path of ["/", "/signin"]) {
     await page.goto(path);
     const hrefs = await page.locator("a[href^='/']").evaluateAll((as) => as.map((a) => (a as HTMLAnchorElement).getAttribute("href")!));
     hrefs.forEach((h) => seen.add(h.split("#")[0] || "/"));
@@ -53,7 +59,7 @@ test("every internal link on public pages resolves", async ({ page, request }) =
   for (const h of seen) expect((await request.get(h)).status(), h).toBeLessThan(400);
   // In-page anchors exist.
   await page.goto("/");
-  for (const id of ["how", "correct", "faq", "trust"]) await expect(page.locator(`#${id}`)).toHaveCount(1);
+  for (const id of ["problem", "correct", "how", "trust", "faq"]) await expect(page.locator(`#${id}`)).toHaveCount(1);
 });
 
 test("keyboard users can reach the primary action and see focus", async ({ page }) => {
