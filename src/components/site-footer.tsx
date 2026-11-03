@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Wordmark } from "./logo";
+import { CreateAnnouncementButton } from "./app/create-button";
 import { ThemeToggle } from "./theme-toggle";
 
 export function SiteFooter() {
@@ -17,13 +18,16 @@ export function SiteFooter() {
           <p className="eyebrow">Product</p>
           <ul className="mt-4 space-y-3 text-[14.5px] text-muted">
             <li>
-              <Link className="hover:text-fg" href="/demo">
-                Create an announcement
-              </Link>
+              <CreateAnnouncementButton className="text-left hover:text-fg" />
             </li>
             <li>
               <Link className="hover:text-fg" href="/#how">
                 How it works
+              </Link>
+            </li>
+            <li>
+              <Link className="hover:text-fg" href="/#correct">
+                Corrections
               </Link>
             </li>
             <li>
@@ -33,7 +37,7 @@ export function SiteFooter() {
             </li>
             <li>
               <Link className="hover:text-fg" href="/#faq">
-                Questions
+                FAQ
               </Link>
             </li>
           </ul>
