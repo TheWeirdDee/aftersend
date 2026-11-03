@@ -4,6 +4,8 @@ import { approveRevision } from "@/lib/notices/revision-service";
 import { approveSchema } from "@/lib/notices/validation";
 
 export const dynamic = "force-dynamic";
+// Approval verifies, copies and re-reads the audio in storage; each request has its own ceiling (STORAGE_TIMEOUT_MS).
+export const maxDuration = 60;
 
 export const POST = route<{ revisionId: string }>(
   async (req, { params }) => {
