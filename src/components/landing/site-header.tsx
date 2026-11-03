@@ -3,36 +3,22 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Wordmark } from "../logo";
-import { ArrowRight, Close, Menu } from "../icons";
+import { ThemeToggle } from "../theme-toggle";
+import { Close, Menu } from "../icons";
 
 const NAV = [
-  { href: "/#product", label: "Product" },
   { href: "/#how", label: "How it works" },
-  { href: "/demo", label: "Live demo" },
-  { href: "/#faq", label: "FAQ" },
-  { href: "/signin", label: "Sign in" },
+  { href: "/#correct", label: "Corrections" },
+  { href: "/#trust", label: "Trust" },
+  { href: "/#faq", label: "Questions" },
 ];
-
-export function AnnouncementBar() {
-  return (
-    <div data-hero className="border-b border-line/70 bg-ink-2">
-      <p className="mx-auto flex min-h-10 max-w-6xl flex-wrap items-center justify-center gap-x-2 px-4 py-2 text-center text-[13px] text-muted">
-        <span className="inline-block size-1.5 rounded-full bg-signal" aria-hidden />
-        <span className="text-fg">Built for AssemblyAI&apos;s Hack into Speech 2026.</span>
-        <Link href="/demo" className="inline-flex items-center gap-1 underline-offset-4 hover:text-fg hover:underline">
-          Try the live demo <ArrowRight className="size-3.5" />
-        </Link>
-      </p>
-    </div>
-  );
-}
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 12);
+    const onScroll = () => setScrolled(window.scrollY > 8);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -47,12 +33,11 @@ export function SiteHeader() {
 
   return (
     <header
-      data-hero
-      className={`sticky top-0 z-50 transition-[background-color,border-color,backdrop-filter] duration-300 ${
-        scrolled || open ? "border-b border-line/80 bg-ink/80 backdrop-blur-xl" : "border-b border-transparent"
+      className={`sticky top-0 z-50 border-b transition-[background-color,border-color] duration-200 ${
+        scrolled || open ? "border-line bg-ink/90 backdrop-blur-xl" : "border-transparent bg-ink"
       }`}
     >
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6 md:h-[72px]">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
         <Link href="/" aria-label="AfterSend home" className="shrink-0 rounded-lg">
           <Wordmark />
         </Link>
@@ -67,9 +52,13 @@ export function SiteHeader() {
             ))}
           </ul>
         </nav>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          <ThemeToggle />
+          <Link href="/signin" className="btn-ghost btn-sm hidden lg:inline-flex">
+            Sign in
+          </Link>
           <Link href="/demo" className="btn-primary btn-sm hidden sm:inline-flex">
-            Try live demo
+            Create an announcement
           </Link>
           <button
             type="button"
@@ -83,22 +72,23 @@ export function SiteHeader() {
           </button>
         </div>
       </div>
-      <nav id="mobile-nav" aria-label="Mobile" hidden={!open} className="border-t border-line/80 md:hidden">
+      <nav id="mobile-nav" aria-label="Mobile" hidden={!open} className="border-t border-line md:hidden">
         <ul className="mx-auto flex max-w-6xl flex-col px-4 py-3">
           {NAV.map((n) => (
             <li key={n.href}>
-              <Link
-                href={n.href}
-                onClick={() => setOpen(false)}
-                className="flex min-h-12 items-center rounded-lg px-2 text-[17px] text-fg hover:bg-surface"
-              >
+              <Link href={n.href} onClick={() => setOpen(false)} className="flex min-h-12 items-center rounded-lg px-2 text-[17px] text-fg hover:bg-surface-2">
                 {n.label}
               </Link>
             </li>
           ))}
+          <li>
+            <Link href="/signin" onClick={() => setOpen(false)} className="flex min-h-12 items-center rounded-lg px-2 text-[17px] text-fg hover:bg-surface-2">
+              Sign in
+            </Link>
+          </li>
           <li className="pt-2 pb-1">
             <Link href="/demo" onClick={() => setOpen(false)} className="btn-primary w-full">
-              Try live demo
+              Create an announcement
             </Link>
           </li>
         </ul>
