@@ -67,6 +67,7 @@ export const createRevisionSchema = z.object({
   text: cleanText(MAX_NOTICE_CHARS, "Notice text"),
   voiceId: z.string().trim().min(1).max(100).optional(),
   updatePreface: updatePreface.transform((v) => v ?? null),
+  sourceUrl: patchSourceUrl,
   // Retrying a create whose response was lost returns the same draft instead of a second one.
   clientToken: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/).optional(),
 });
