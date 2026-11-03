@@ -388,8 +388,8 @@ test("security: other workspaces, anonymous visitors and drafts see nothing they
   // A second workspace cannot read, edit, generate, approve, discard or withdraw the first one's work.
   const other = await browser.newContext();
   const intruder = await other.newPage();
-  await intruder.goto("/demo");
-  await intruder.getByRole("button", { name: "Start writing" }).click();
+  await intruder.goto("/");
+  await intruder.getByRole("button", { name: "Create an announcement" }).first().click();
   await expect(intruder).toHaveURL(/\/edit$/);
   const h = jsonHeaders(intruder);
   const attempts = [
