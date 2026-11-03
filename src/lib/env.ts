@@ -15,6 +15,8 @@ const schema = z.object({
   PGLITE_DIR: z.string().optional(),
   STORAGE_DRIVER: z.enum(["local", "s3", "supabase"]).default("local"),
   LOCAL_STORAGE_DIR: z.string().default(".data/objects"),
+  // Ceiling for one storage request (upload, download or delete). A generate request also clamps it to the time left.
+  STORAGE_TIMEOUT_MS: z.coerce.number().int().min(500).max(30000).default(10000),
   OBJECT_STORAGE_BUCKET: z.string().optional(),
   SUPABASE_URL: z.string().url().optional(),
   // Server-only. Used solely for Storage requests from API routes.
