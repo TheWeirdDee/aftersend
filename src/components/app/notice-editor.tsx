@@ -475,7 +475,7 @@ export function NoticeEditor(props: EditorProps) {
         <div className="min-w-0 space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-[13px]">
             <span className="text-muted">{isCorrection ? "Updating the live announcement" : "New announcement"}</span>
-            <span aria-live="polite" className="font-mono text-faint">
+            <span aria-live="polite" className="text-faint">
               {saveLabel}
               {save === "error" ? (
                 <button type="button" className="ml-2 text-signal underline underline-offset-4" onClick={() => void saver().flush()}>
