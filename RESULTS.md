@@ -2,6 +2,29 @@
 
 This file holds measurements only. Targets and plans live in `docs/`. Every number below names how it was taken.
 
+## Eighth pass, 3 November 2026: recovery and redesign (live on production)
+
+Commit `142cd42` on `main`, deployed to https://aftersend-sigma.vercel.app. Evidence classes are kept apart below.
+
+**Live (the deployed site, real AssemblyAI speech).**
+- `npm run verify:deploy -- <url> --storage`: 23 of 23 checks passed after the deploy. Migration `0003` is applied (4 of 4 migrations, `notice_revisions.source_url` present; read-only query).
+- `npm run verify:live:guest`: 7 of 7 steps passed, `evidence/live-guest-2026-11-03T09-56-22-363Z.json`: guest session with the sample announcement; speech (15.8 s of 24 kHz WAV, provider 1.5 s, request 9.2 s); publish, the public link serves text and audio; correction to 4:00 PM (18.2 s of audio, provider 1.7 s) with the public link unchanged until approval; approval, the same link serves 4:00 PM and a new audio file; the superseded audio returns 404; withdrawal, the page says so and no audio is served.
+- A recorded browser run of the same journey in the real UI (editor with automatic speech, listening gate, publish, correction, same link): `evidence/demo-video/`. It ran to the end without an error. It is silent and captioned; caption timings in the `.srt` are measured from the start of the script and may be about a second off the video.
+- `npm run tts:smoke` (local, real service, 2 requests): both succeeded, first audio in 0.9 and 1.4 s, 2.6 and 3.1 s in total, `evidence/tts-smoke-2026-11-03T09-18-17-234Z.json`.
+
+**Automated (not live).** Local: lint and typecheck clean; 309 of 309 unit and integration tests; 55 of 55 browser tests on Chromium (desktop and mobile projects); Firefox playback passed twice earlier the same day before this machine's audio output began failing. GitHub Actions, run `41613559968` on the pull request: `verify` passed with 309 of 309 unit and integration tests (including two migrators started at once against a real Postgres 16 service container, each migration applied once) and 56 passed and 1 skipped browser tests (WebKit playback passed on Linux; Firefox skipped because the runner has no sound device). The speech provider in these tests is the labelled test tone: they prove application behaviour, not speech quality.
+
+**Defects found and fixed**, with root causes, in `docs/DEFECT_LOG.md`: the red CI job (two simultaneous migrators against a one-connection test database); a listening gate that stalled when the browser failed to open the audio output (measured as `MediaError 3, AUDIO_RENDERER_ERROR`, not a server or file fault); edits refused while speech was being prepared; a late older status answer overwriting a newer one; no speech after a retried save; a sample date whose weekday did not match.
+
+**Not verified.**
+- No person has listened to the speech (`docs/LISTENING_REVIEW.md` unsigned).
+- Sign-in email delivery, email recovery and the two-account boundary on the deployed site: they need a code from a real inbox. Covered by the integration and browser tests, not re-run live.
+- Saving a guest to an email on the deployed site (same reason).
+- Safari itself; Firefox with a working sound device in CI.
+- The demo video has no narration and does not show saving the account. The hackathon's required length is unconfirmed.
+- Whether an AssemblyAI key exposed earlier has been deleted.
+- Cross-device behaviour of the guest 30-day window beyond what the integration tests cover.
+
 ## Seventh pass, 3 November 2026: review findings fixed, gates re-run
 
 Starting point: a source review (not by me, not reproduced at the time) listed five defects and some unproven items. Each was checked against the source first; all five were real. **Nothing in this pass was deployed or pushed, and nothing was run against production.** The deployed build is still the one from 30 October.
