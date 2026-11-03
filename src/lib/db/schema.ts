@@ -99,6 +99,9 @@ export const noticeRevisions = pgTable(
     displayText: text("display_text").notNull(),
     speechText: text("speech_text").notNull(),
     updatePreface: text("update_preface"),
+    // The source link this revision publishes with. The notice's own source_url (what listeners see) changes only when
+    // a revision is approved, so a correction in progress never alters the live page.
+    sourceUrl: text("source_url"),
     updateSummary: jsonb("update_summary").$type<UpdateSummary[]>(),
     confirmedCriticalFacts: boolean("confirmed_critical_facts").notNull().default(false),
     voiceId: text("voice_id").notNull(),
