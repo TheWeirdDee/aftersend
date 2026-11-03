@@ -29,7 +29,7 @@ export function NoticeComposer({ voices, initial }: { voices: Voice[]; initial?:
       });
       router.push(`/app/notices/${noticeId}/edit`);
     } catch (err) {
-      setError(err instanceof ApiFailure ? err.message : "Could not save the notice.");
+      setError(err instanceof ApiFailure ? err.message : "Could not save the announcement.");
       setBusy(false);
     }
   };
@@ -50,11 +50,11 @@ export function NoticeComposer({ voices, initial }: { voices: Voice[]; initial?:
             placeholder="e.g. Early closure on Friday"
             required
           />
-          <p className="field-hint">Spoken first, before the notice.</p>
+          <p className="field-hint">Read aloud first, before the announcement.</p>
         </div>
         <div>
           <label htmlFor="text" className="field-label">
-            Notice text
+            Announcement
           </label>
           <textarea
             id="text"
@@ -62,7 +62,7 @@ export function NoticeComposer({ voices, initial }: { voices: Voice[]; initial?:
             value={text}
             maxLength={MAX_NOTICE_CHARS}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Paste the exact wording you have approved."
+            placeholder="Write or paste the announcement exactly as parents should hear it."
             required
             aria-describedby="text-hint"
           />
@@ -110,9 +110,9 @@ export function NoticeComposer({ voices, initial }: { voices: Voice[]; initial?:
           </p>
         ) : null}
         <button type="submit" className="btn-primary h-12 w-full" disabled={busy || !title.trim() || !text.trim() || !voiceId}>
-          {busy ? <Spinner /> : null} Save and continue to audio <ArrowRight />
+          {busy ? <Spinner /> : null} Continue to the spoken preview <ArrowRight />
         </button>
-        <p className="text-[13px] leading-5 text-faint">Saving creates a private draft. Nothing is public until you approve it.</p>
+        <p className="text-[13px] leading-5 text-faint">Nothing is public until you publish it.</p>
       </div>
     </form>
   );
