@@ -10,7 +10,7 @@ import { generateListenApprove, publicUrl, startDemo, versionOf } from "./helper
 async function publishFirst(page: Page) {
   await startDemo(page);
   const noticeId = page.url().match(/ntc_[a-f0-9]+/)![0];
-  await generateListenApprove(page, /Approve and publish/);
+  await generateListenApprove(page, /Publish announcement/);
   return { noticeId, url: await publicUrl(page) };
 }
 
@@ -30,7 +30,7 @@ async function correctViaApi(page: Page, noticeId: string, from: string, to: str
   return created.revisionId as string;
 }
 
-const openCorrection = (page: Page) => page.getByRole("link", { name: /Correct this notice/ }).click();
+const openCorrection = (page: Page) => page.getByRole("link", { name: /Update this announcement/ }).click();
 const statusOfFetch = (page: Page, url: string) => page.evaluate(async (u) => (await fetch(u)).status, url);
 
 test("a browser that already holds the audio does not get it after a correction or a withdrawal", async ({ page, context }) => {
@@ -59,13 +59,13 @@ test("a browser that already holds the audio does not get it after a correction 
   expect((await page.request.post(`/api/notices/${noticeId}/withdraw`, { headers })).status()).toBe(200);
   expect(await statusOfFetch(listener, audio2)).toBe(404); // cached by this browser, refused by the server
   await listener.reload();
-  await expect(listener.getByText("This notice has been withdrawn by its publisher.")).toBeVisible();
+  await expect(listener.getByText("The publisher has withdrawn this announcement.")).toBeVisible();
   await expect(listener.locator("audio")).toHaveCount(0);
 
   // Navigating away and back must not resurrect the withdrawn notice's player.
   await listener.goto("/");
   await listener.goBack();
-  await expect(listener.getByText("This notice has been withdrawn by its publisher.")).toBeVisible();
+  await expect(listener.getByText("The publisher has withdrawn this announcement.")).toBeVisible();
   await expect(listener.locator("audio")).toHaveCount(0);
 });
 
@@ -104,14 +104,14 @@ test("autosave sends one request at a time, newest last, and does not claim 'sav
     await route.fulfill({ response });
   });
 
-  const text = page.getByLabel("Notice text");
+  const text = page.getByLabel("Announcement", { exact: true });
   const base = await text.inputValue();
   await text.fill(`${base}\nEdit A.`);
   await expect.poll(() => sent.length).toBe(1); // debounce fired, first request is now stuck in the slow path
   await text.fill(`${base}\nEdit B.`);
-  await expect(page.getByText("Draft saved")).toHaveCount(0); // a newer edit is waiting: not saved yet
+  await expect(page.getByText("Saved", { exact: true })).toHaveCount(0); // a newer edit is waiting: not saved yet
 
-  await expect(page.getByText("Draft saved")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 15_000 });
   expect(sent).toHaveLength(2);
   expect(sent[0]).toContain("Edit A.");
   expect(sent[1]).toContain("Edit B.");
@@ -132,14 +132,14 @@ test("a slow first save of a correction cannot create a second draft", async ({ 
     if (creates === 1) await new Promise((r) => setTimeout(r, 1500));
     await route.continue();
   });
-  const text = page.getByLabel("Notice text");
+  const text = page.getByLabel("Announcement", { exact: true });
   await text.fill((await text.inputValue()).replace("3:00 PM", "4:00 PM"));
   await expect.poll(() => creates).toBe(1);
   await text.fill((await text.inputValue()).replace("4:00 PM", "4:15 PM")); // typed while the create is in flight
-  await expect(page.getByText("Draft saved")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible({ timeout: 15_000 });
 
   const detail = await (await page.request.get(`/api/notices/${noticeId}`)).json();
-  const drafts = detail.revisions.filter((r: { status: string }) => r.status === "draft");
+  const drafts = detail.revisions.filter((r: { status: string }) => !["published", "superseded", "discarded"].includes(r.status));
   expect(drafts).toHaveLength(1);
   expect(drafts[0].displayText).toContain("4:15 PM");
   expect(creates).toBe(1);
@@ -157,32 +157,32 @@ test("a lost response to creating a draft is retried without duplicating it", as
     }
     await route.continue();
   });
-  const text = page.getByLabel("Notice text");
+  const text = page.getByLabel("Announcement", { exact: true });
   await text.fill((await text.inputValue()).replace("3:00 PM", "4:00 PM"));
   await expect(page.getByText(/Not saved/)).toBeVisible();
-  await page.getByRole("button", { name: "Retry" }).click();
-  await expect(page.getByText("Draft saved")).toBeVisible();
+  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
 
   const detail = await (await page.request.get(`/api/notices/${noticeId}`)).json();
-  expect(detail.revisions.filter((r: { status: string }) => r.status === "draft")).toHaveLength(1);
+  expect(detail.revisions.filter((r: { status: string }) => !["published", "superseded", "discarded"].includes(r.status))).toHaveLength(1);
   expect(creates).toBe(2);
 });
 
 test("editing in a second tab is detected, shown, and recoverable without losing either side", async ({ page, context }) => {
   const { noticeId } = await publishFirst(page);
   await openCorrection(page);
-  const one = page.getByLabel("Notice text");
+  const one = page.getByLabel("Announcement", { exact: true });
   const original = await one.inputValue();
   await one.fill(original.replace("3:00 PM", "4:00 PM"));
-  await expect(page.getByText("Draft saved")).toBeVisible();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
 
   const second = await context.newPage();
   await second.goto(`/app/notices/${noticeId}/edit`); // resumes the same draft at its current version
-  const two = second.getByLabel("Notice text");
+  const two = second.getByLabel("Announcement", { exact: true });
   await expect(two).toHaveValue(original.replace("3:00 PM", "4:00 PM"));
 
   await one.fill(original.replace("3:00 PM", "4:15 PM"));
-  await expect(page.getByText("Draft saved")).toBeVisible();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
 
   await two.fill(original.replace("3:00 PM", "9:99 PM stale tab"));
   const dialog = second.getByRole("alertdialog");
@@ -190,7 +190,7 @@ test("editing in a second tab is detected, shown, and recoverable without losing
   await expect(dialog).toContainText("This draft changed somewhere else");
   await expect(second.getByText(/Conflict: not saved/)).toBeVisible();
 
-  const server = async () => (await (await page.request.get(`/api/notices/${noticeId}`)).json()).revisions.find((r: { status: string }) => r.status === "draft").displayText as string;
+  const server = async () => (await (await page.request.get(`/api/notices/${noticeId}`)).json()).revisions.find((r: { status: string }) => !["published", "superseded", "discarded"].includes(r.status)).displayText as string;
   expect(await server()).toContain("4:15 PM"); // the stale tab did not overwrite it
   expect(await server()).not.toContain("stale tab");
 
@@ -207,18 +207,18 @@ test("editing in a second tab is detected, shown, and recoverable without losing
   await two.fill(original.replace("3:00 PM", "5:00 PM"));
   await expect(dialog).toBeVisible();
   await second.getByRole("button", { name: "Save my edits over it" }).click();
-  await expect(second.getByText("Draft saved")).toBeVisible();
+  await expect(second.getByText("Saved", { exact: true })).toBeVisible();
   expect(await server()).toContain("5:00 PM");
 });
 
 test("another tab publishing the draft is reported when this tab tries to save", async ({ page, context }) => {
   const { noticeId } = await publishFirst(page);
   await openCorrection(page);
-  const text = page.getByLabel("Notice text");
+  const text = page.getByLabel("Announcement", { exact: true });
   const original = await text.inputValue();
   await text.fill(original.replace("3:00 PM", "4:00 PM"));
-  await expect(page.getByText("Draft saved")).toBeVisible();
-  const draftId = (await (await page.request.get(`/api/notices/${noticeId}`)).json()).revisions.find((r: { status: string }) => r.status === "draft").id as string;
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  const draftId = (await (await page.request.get(`/api/notices/${noticeId}`)).json()).revisions.find((r: { status: string }) => !["published", "superseded", "discarded"].includes(r.status)).id as string;
 
   const headers = jsonHeaders(page);
   await page.request.post(`/api/revisions/${draftId}/generate`, { headers });
@@ -235,16 +235,17 @@ test("another tab publishing the draft is reported when this tab tries to save",
 test("a failed synthesis and a dropped connection are visible, and the draft recovers", async ({ page, context }) => {
   const { noticeId, url } = await publishFirst(page);
   await openCorrection(page);
-  const text = page.getByLabel("Notice text");
+  const text = page.getByLabel("Announcement", { exact: true });
   const original = await text.inputValue();
   const corrected = original.replace("3:00 PM", "4:00 PM");
 
   // Provider failure (test-only fault marker): visible, retryable, live version untouched.
   await text.fill(`${corrected} [[fail-synthesis]]`);
-  await expect(page.getByText("Draft saved")).toBeVisible();
-  await page.getByRole("button", { name: /Generate preview/ }).first().click();
-  await expect(page.getByRole("alert").filter({ hasText: "Audio generation failed" })).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByText("generate again to retry")).toBeVisible();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  // The voice is prepared by itself after the pause; the fault makes that fail, visibly, with a Retry audio button.
+  await expect(page.getByRole("status").filter({ hasText: "Voice update failed" })).toBeVisible({ timeout: 40_000 });
+  await expect(page.getByRole("button", { name: "Retry audio" })).toBeVisible();
+  await expect(page.getByText("Your text is saved.")).toBeVisible();
   const listener = await context.newPage();
   await listener.goto(url);
   await expect(listener.getByTestId("notice-text")).toContainText("3:00 PM");
@@ -259,15 +260,15 @@ test("a failed synthesis and a dropped connection are visible, and the draft rec
   await text.fill(`${corrected} Bring water.`);
   await expect(page.getByText(/Not saved/)).toBeVisible();
   await expect(page.locator("p[role='alert']")).toContainText("Can't reach AfterSend");
-  await page.getByRole("button", { name: /Generate preview/ }).first().click();
+  await page.waitForTimeout(4000); // longer than the pause before speech is requested
   await expect(page.getByText(/Not saved/)).toBeVisible();
-  expect(generated).toBe(0);
+  expect(generated).toBe(0); // text that could not be saved is never sent for speech
 
   // Connection returns: retry saves, and generation then succeeds and publishes.
   await page.unroute(/\/api\/revisions\/rev_[a-f0-9]+$/);
-  await page.getByRole("button", { name: "Retry" }).click();
-  await expect(page.getByText("Draft saved")).toBeVisible();
-  await generateListenApprove(page, /Approve update/);
+  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await generateListenApprove(page, /Update announcement/);
   await listener.reload();
   await expect(listener.getByTestId("notice-text")).toContainText("4:00 PM");
   await expect(listener.getByTestId("notice-text")).toContainText("Bring water.");
@@ -287,10 +288,10 @@ test("mocked status: a reopened page follows work in progress and offers recover
     return route.fulfill({ json: real });
   });
   await page.reload();
-  await expect(page.getByRole("status").filter({ hasText: "Synthesizing audio" })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Generate preview/ }).first()).toBeDisabled(); // busy: inputs locked while work is live
+  await expect(page.getByRole("status").filter({ hasText: "Updating voice" })).toBeVisible();
+  await expect(page.getByLabel("Announcement", { exact: true })).toBeEnabled(); // editing stays possible while the voice is prepared
   // Polling moves on by itself once the server says the work is over.
-  await expect(page.getByRole("status").filter({ hasText: "No audio generated yet" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("status").filter({ hasText: "Ready to listen" })).toBeVisible({ timeout: 40_000 });
   expect(calls).toBeGreaterThan(3);
 
   await page.unroute(statusUrl);
@@ -299,22 +300,21 @@ test("mocked status: a reopened page follows work in progress and offers recover
     return route.fulfill({ json: { ...real, status: "synthesizing", synthesis: { claimedAgoMs: 120000, staleAfterMs: 65000 } } });
   });
   await page.reload();
-  await expect(page.getByRole("status").filter({ hasText: "Generation stalled" })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Voice update failed" })).toBeVisible();
   await expect(page.getByText("seems to have stalled")).toBeVisible();
-  await expect(page.getByRole("button", { name: /Generate preview/ }).first()).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Retry audio" })).toBeEnabled();
 });
 
 test("approval waits until the whole preview has been played, and skipping ahead does not count", async ({ page }) => {
   await startDemo(page);
-  await page.getByRole("button", { name: /Generate preview/ }).first().click();
-  await expect(page.getByRole("status").filter({ hasText: "Ready to preview" })).toBeVisible({ timeout: 30_000 });
-  const confirm = page.getByLabel(/I listened to the preview/);
+  await expect(page.getByRole("status").filter({ hasText: "Ready to listen" })).toBeVisible({ timeout: 40_000 });
+  const confirm = page.getByLabel(/I listened to this preview/);
   await expect(confirm).toBeDisabled();
   await expect(page.getByTestId("listen-progress")).toContainText("play it through");
 
   const audio = page.locator("audio");
   await expect.poll(() => audio.evaluate((a: HTMLAudioElement) => a.duration)).toBeGreaterThan(1);
-  await page.getByRole("button", { name: "Play audio preview" }).click();
+  await page.getByRole("button", { name: "Play spoken preview" }).click();
   await page.waitForTimeout(500);
   await expect(confirm).toBeDisabled(); // pressing play is not listening
 
@@ -334,7 +334,7 @@ test("approval waits until the whole preview has been played, and skipping ahead
   await expect(page.getByTestId("listen-progress")).toContainText("Listened to the whole preview");
 });
 
-test("an ambiguous date is flagged on the control that holds it and blocks generation", async ({ page }) => {
+test("an ambiguous date is flagged on the control that holds it and no voice is prepared for it", async ({ page }) => {
   await startDemo(page);
   const title = page.getByLabel("Title");
   await title.fill("Trip on 05/06/26");
@@ -342,15 +342,16 @@ test("an ambiguous date is flagged on the control that holds it and blocks gener
   await expect(problem).toContainText("05/06/26");
   await expect(title).toHaveAttribute("aria-invalid", "true");
   await expect(title).toHaveAttribute("aria-describedby", "title-problem");
-  await expect(page.getByRole("button", { name: /Generate preview/ }).first()).toBeDisabled();
+  const blocked = page.getByRole("status").filter({ hasText: "Say which day or time" });
+  await expect(blocked).toBeVisible();
   await title.fill("Trip on 5 June 2026");
   await expect(problem).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /Generate preview/ }).first()).toBeEnabled();
+  await expect(blocked).toHaveCount(0);
 
-  const text = page.getByLabel("Notice text");
+  const text = page.getByLabel("Announcement", { exact: true });
   await text.fill("Lunch is on 31/02/2026.");
   await expect(page.locator("#text-problem")).toContainText("not on the calendar");
-  await expect(page.getByRole("button", { name: /Generate preview/ }).first()).toBeDisabled();
+  await expect(blocked).toBeVisible();
 });
 
 test("security: other workspaces, anonymous visitors and drafts see nothing they should not", async ({ page, browser }) => {
@@ -388,7 +389,7 @@ test("security: other workspaces, anonymous visitors and drafts see nothing they
   const other = await browser.newContext();
   const intruder = await other.newPage();
   await intruder.goto("/demo");
-  await intruder.getByRole("button", { name: "Start the demo" }).click();
+  await intruder.getByRole("button", { name: "Start writing" }).click();
   await expect(intruder).toHaveURL(/\/edit$/);
   const h = jsonHeaders(intruder);
   const attempts = [
@@ -417,7 +418,7 @@ for (const width of [320, 375, 768, 1024, 1440]) {
     expect(await overflow()).toBeLessThanOrEqual(0);
     await startDemo(page);
     expect(await overflow()).toBeLessThanOrEqual(0);
-    await generateListenApprove(page, /Approve and publish|Publish/);
+    await generateListenApprove(page, /Publish announcement/);
     const url = await publicUrl(page);
     await page.goto(url);
     expect(await overflow()).toBeLessThanOrEqual(0);
