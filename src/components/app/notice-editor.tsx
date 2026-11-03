@@ -8,6 +8,7 @@ import { api, ApiFailure } from "@/lib/client/api";
 import { factChanges, suggestUpdatePreface } from "@/lib/notices/diff";
 import { createSerialSaver, type SerialSaver } from "@/lib/client/serial-saver";
 import { createSpeechSync, type SpeechSync } from "@/lib/client/speech-sync";
+import { createOrdered } from "@/lib/client/ordered";
 import { detectCriticalFacts } from "@/lib/notices/facts";
 import { toSpeechText } from "@/lib/notices/normalize-speech";
 import { MAX_NOTICE_CHARS, MAX_TITLE_CHARS } from "@/lib/notices/validation";
@@ -131,10 +132,16 @@ export function NoticeEditor(props: EditorProps) {
   }, [title, preface, text, isCorrection]);
   const ambiguous = !!(ambiguousBy.title || ambiguousBy.preface || ambiguousBy.text);
 
+  // Status answers are applied in the order the questions were asked. A slow, older answer ("still preparing") that arrives after a
+  // newer one ("ready") is dropped; applying it would remove the spoken preview and throw away the audio being listened to.
+  const statusOrder = useRef(createOrdered());
   const refreshStatus = useCallback(async (id: string) => {
+    const n = statusOrder.current.next();
     const s = await api<StatusResponse>(`/api/revisions/${id}/status`);
-    statusRef.current = s;
-    setStatus(s);
+    if (statusOrder.current.accept(n)) {
+      statusRef.current = s;
+      setStatus(s);
+    }
     return s;
   }, []);
 
@@ -231,20 +238,18 @@ export function NoticeEditor(props: EditorProps) {
     return ok ? revisionIdRef.current : null;
   };
 
+  /**
+   * Saves again after a failed save. The speech request that followed the edit gave up while the text could not be saved, and
+   * nothing else would ask again, so a save that finally succeeds starts the pause timer for the voice.
+   */
+  const retrySave = async () => {
+    if (await saver().flush()) syncRef.current?.touch();
+  };
+
   useEffect(() => {
     if (!revisionId) return;
-    let live = true;
-    api<StatusResponse>(`/api/revisions/${revisionId}/status`)
-      .then((s) => {
-        if (!live) return;
-        statusRef.current = s;
-        setStatus(s);
-      })
-      .catch(() => {});
-    return () => {
-      live = false;
-    };
-  }, [revisionId]);
+    refreshStatus(revisionId).catch(() => {});
+  }, [revisionId, refreshStatus]);
 
   // Work that outlives one request (a reopened page, another tab, a request that was cut off) is followed
   // by polling rather than a single look.
@@ -252,21 +257,11 @@ export function NoticeEditor(props: EditorProps) {
   const stuck = !!status?.synthesis && status.synthesis.claimedAgoMs >= status.synthesis.staleAfterMs;
   useEffect(() => {
     if (!synthesizing || !revisionId) return;
-    let live = true;
     const t = setInterval(() => {
-      api<StatusResponse>(`/api/revisions/${revisionId}/status`)
-        .then((s) => {
-          if (!live) return;
-          statusRef.current = s;
-          setStatus(s);
-        })
-        .catch(() => {});
+      refreshStatus(revisionId).catch(() => {});
     }, 1500);
-    return () => {
-      live = false;
-      clearInterval(t);
-    };
-  }, [synthesizing, revisionId]);
+    return () => clearInterval(t);
+  }, [synthesizing, revisionId, refreshStatus]);
 
   useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => {
@@ -279,7 +274,7 @@ export function NoticeEditor(props: EditorProps) {
   // A save that failed because the connection dropped is retried when it comes back.
   useEffect(() => {
     const retry = () => {
-      if (saver().state === "error" && !(saver().error instanceof NotSaveable)) void saver().flush();
+      if (saver().state === "error" && !(saver().error instanceof NotSaveable)) void saver().flush().then((ok) => ok && syncRef.current?.touch());
     };
     window.addEventListener("online", retry);
     return () => window.removeEventListener("online", retry);
@@ -478,7 +473,7 @@ export function NoticeEditor(props: EditorProps) {
             <span aria-live="polite" className="text-faint">
               {saveLabel}
               {save === "error" ? (
-                <button type="button" className="ml-2 text-signal underline underline-offset-4" onClick={() => void saver().flush()}>
+                <button type="button" className="ml-2 text-signal underline underline-offset-4" onClick={() => void retrySave()}>
                   Retry
                 </button>
               ) : null}
