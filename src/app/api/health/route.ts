@@ -13,5 +13,7 @@ export async function GET() {
     database = "error";
   }
   const ok = database === "ok";
-  return json({ ok, checks: { database } }, { status: ok ? 200 : 503 });
+  // The commit this deployment was built from (set by Vercel), so a deploy can be matched to a GitHub commit.
+  const commit = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7);
+  return json({ ok, checks: { database }, ...(commit ? { commit } : {}) }, { status: ok ? 200 : 503 });
 }
