@@ -2,6 +2,46 @@
 
 This file holds measurements only. Targets and plans live in `docs/`. Every number below names how it was taken.
 
+## Seventh pass, 3 November 2026: review findings fixed, gates re-run
+
+Starting point: a source review (not by me, not reproduced at the time) listed five defects and some unproven items. Each was checked against the source first; all five were real. **Nothing in this pass was deployed or pushed, and nothing was run against production.** The deployed build is still the one from 30 October.
+
+### The three kinds of evidence, kept apart
+
+| Kind | What it covers | Status |
+|---|---|---|
+| **Live** (real services, real deployment) | 30 Oct: AssemblyAI synthesis, Resend acceptance, Supabase migrations, private bucket, 23 of 23 deployment checks (`evidence/verify-deploy-2026-10-30.txt`) | Historical. Not re-run today |
+| **Live journey** (publish, correct, withdraw, recover, two accounts, storage URLs) | The one attempt (`evidence/live-journey-2026-10-30T16-37-26-196Z.json`) stopped at sign-in because no code was supplied within 9 minutes: **2 steps passed, 11 failed from missing state, 2 never ran. It proves nothing about the product.** | **Not verified** |
+| **Mocked or local tests** (PGlite, local store, fake transports, Playwright on a local production build) | Everything below | See the table |
+| **Manual listening** | `docs/LISTENING_REVIEW.md` | **Unsigned. Nobody has listened.** |
+
+### Defects fixed
+
+| Finding | Confirmed by | Fix | Tests that fail without it |
+|---|---|---|---|
+| Storage calls had no deadline, so a slow store could outlive the function before the outcome was recorded | Source: `store.put/get` awaited with no signal | Every storage request has a hard deadline (abort signal plus an independent timer); during generation it is clamped to the time left, and a timeout fails the attempt as a retryable `timeout` with the outcome recorded; during approval it becomes a retryable 503 | `storage-deadlines.test.ts` (9), `storage-deadline.test.ts` (4) |
+| Readiness probes shared one object key | Source: one constant key | Random key per probe, removed in `finally` | `storage-deadlines.test.ts` (overlapping probes) |
+| Live journey cascaded after a failed prerequisite | The 30 Oct evidence file: 11 consecutive errors after one sign-in failure | Each step names its prerequisites; a step whose prerequisite did not pass is recorded as skipped with the reason; the report counts failed and skipped separately | `journey-needs.test.ts` (7), which also checks the table against the real step names in the script |
+| A published notice's source link could not be corrected (the editor stopped sending it, the API ignored it) | Source | The link is stored per revision (`notice_revisions.source_url`, migration `0003`, backfilled from the notices) and goes live in the same transaction as its revision, so a draft never changes the public page | `source-link.test.ts` (10), including the migration run over old-shape data |
+| Abandoned demo workspaces and their audio were never removed | Source | `cleanupAbandonedDemos` in the daily cron: demo, no email, at least 7 days old, no live session. Bytes first; a storage failure leaves the workspace whole; at most 25 per run | `demo-cleanup.test.ts` (10) |
+
+**Mutation check.** 18 deliberate breakages of the new code (removing a deadline, a guard, the migration backfill, the session condition and so on) were each run against the tests. 17 failed as they should; one survived, because the test only covered a workspace with an email, so I added the missing case (a non-demo workspace with no email) and the survivor is now caught. All 18 are caught.
+
+### Other changes in this pass
+Environment hygiene after the inline-comment incident: `.env.example` has no inline comments; `check:env` reads the raw file; the production check (also run by `/api/ready` and `verify:deploy`) refuses inline comments, quote characters and non-integers in numeric settings; `npm run env:sync` (dry run by default) copies `.env.local` to Vercel Production only after those checks; `npm run db:set-password` percent-encodes a new database password, tests both URLs and updates `.env.local` only if both connect. New setting `STORAGE_TIMEOUT_MS` (default 10000). Documentation reconciled: the README status, the submission draft (live address and measured AssemblyAI numbers filled in) and a "current status" section at the top of the audit that supersedes the historical list.
+
+### Gates on the final committed code
+
+| Gate | Result |
+|---|---|
+| Typecheck, lint | **clean** |
+| Production build | **succeeded** (run on the code before the final two test-only commits) |
+| Unit and integration (Vitest) | **289 of 289 passed** with 3 workers. With default parallelism on this machine the runs failed three different ways: worker processes ran out of memory (`Fatal process out of memory: Zone`), a test that launches a real `tsx` process timed out at 30 s, and two timing assertions of mine were too tight. The assertions were loosened; the rest is the machine |
+| Browser (Playwright, production build) | **Not a clean pass.** Best full run: **43 of 49**, one worker. The 6 failures are always the same step, the "I listened to the preview" box never enabling because the browser reports the preview audio "can't be played right now". The server side is fine (the audio request answered 206 with the full 236 KB in 126 ms). **The previous commit, `0368ae1`, which passed 49 of 49 on 30 Oct, also fails 6 of 49 on this machine today**, so this pass did not cause it. The failing tests differ from run to run (three recur), and tests that failed in one run passed alone or in a group of six, and vice versa. Cause not established; free memory was 0.8 to 2 GB of 8 GB with several other dev servers running. Every one of the 49 tests has passed on the current code at least once today, but **not in one run** |
+
+### Still not done
+Full journey on production; superseded and withdrawn audio read directly from storage; two-account boundary on production; the migration lock under concurrent builds; human listening; confirmation that the exposed AssemblyAI key was deleted; the demo video; deploying the fixes above (they need a production build, which runs migration `0003`).
+
 ## Sixth pass, 30 October 2026: real database, real storage, first production deployment
 
 Observed with the owner's `.env.local` (never printed) and the Vercel CLI logged in as the owner. The code was not changed in this pass; the commit under test is the one at the top of the fifth pass.
