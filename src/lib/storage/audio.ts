@@ -1,13 +1,51 @@
 import "server-only";
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { env } from "../env";
 
+/** Per-call options. `timeoutMs` overrides the store's default ceiling for this one operation. */
+export type StoreOptions = { timeoutMs?: number };
+
 export interface ObjectStore {
-  put(key: string, bytes: Uint8Array, contentType: string): Promise<void>;
-  get(key: string): Promise<Uint8Array | null>;
-  delete(key: string): Promise<void>;
+  put(key: string, bytes: Uint8Array, contentType: string, opts?: StoreOptions): Promise<void>;
+  get(key: string, opts?: StoreOptions): Promise<Uint8Array | null>;
+  delete(key: string, opts?: StoreOptions): Promise<void>;
+}
+
+/** A storage operation did not finish inside its deadline. Callers decide whether the request can still succeed. */
+export class StorageTimeoutError extends Error {
+  constructor(what: string, ms: number) {
+    super(`Storage ${what} did not finish within ${ms} ms.`);
+    this.name = "StorageTimeoutError";
+  }
+}
+
+export const DEFAULT_STORAGE_TIMEOUT_MS = 10_000;
+
+/**
+ * Runs one storage operation under a hard deadline. The operation gets an AbortSignal so the request is cancelled, and
+ * the call is also raced against a timer, so an implementation that ignores the signal still cannot hold the request
+ * past its deadline.
+ */
+export async function withStorageDeadline<T>(what: string, ms: number, run: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const limit = Math.max(1, Math.floor(ms));
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const expired = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new StorageTimeoutError(what, limit));
+    }, limit);
+  });
+  try {
+    return await Promise.race([run(controller.signal), expired]);
+  } catch (err) {
+    if (controller.signal.aborted) throw new StorageTimeoutError(what, limit);
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 const KEY_PATTERN = /^(staging|published)\/[a-z0-9_]+\/[a-z0-9_]+\/[a-f0-9]{64}\.(wav|mp3)$/;
@@ -69,7 +107,10 @@ class LocalStore implements ObjectStore {
 class S3Store implements ObjectStore {
   private clientPromise: Promise<import("@aws-sdk/client-s3").S3Client>;
 
-  constructor(private readonly bucket: string) {
+  constructor(
+    private readonly bucket: string,
+    private readonly timeoutMs: number = DEFAULT_STORAGE_TIMEOUT_MS,
+  ) {
     const e = env();
     this.clientPromise = import("@aws-sdk/client-s3").then(
       ({ S3Client }) =>
@@ -85,30 +126,37 @@ class S3Store implements ObjectStore {
     );
   }
 
-  async put(key: string, bytes: Uint8Array, contentType: string) {
+  async put(key: string, bytes: Uint8Array, contentType: string, opts?: StoreOptions) {
     assertSafeKey(key);
     const { PutObjectCommand } = await import("@aws-sdk/client-s3");
-    await (await this.clientPromise).send(
-      new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: bytes, ContentType: contentType }),
+    const client = await this.clientPromise;
+    await withStorageDeadline("upload", opts?.timeoutMs ?? this.timeoutMs, (abortSignal) =>
+      client.send(new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: bytes, ContentType: contentType }), { abortSignal }),
     );
   }
 
-  async get(key: string) {
+  async get(key: string, opts?: StoreOptions) {
     assertSafeKey(key);
     const { GetObjectCommand } = await import("@aws-sdk/client-s3");
+    const client = await this.clientPromise;
     try {
-      const res = await (await this.clientPromise).send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
-      return res.Body ? new Uint8Array(await res.Body.transformToByteArray()) : null;
+      return await withStorageDeadline("download", opts?.timeoutMs ?? this.timeoutMs, async (abortSignal) => {
+        const res = await client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }), { abortSignal });
+        return res.Body ? new Uint8Array(await res.Body.transformToByteArray()) : null;
+      });
     } catch (err) {
       if ((err as { name?: string }).name === "NoSuchKey") return null;
       throw err;
     }
   }
 
-  async delete(key: string) {
+  async delete(key: string, opts?: StoreOptions) {
     assertSafeKey(key);
     const { DeleteObjectCommand } = await import("@aws-sdk/client-s3");
-    await (await this.clientPromise).send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+    const client = await this.clientPromise;
+    await withStorageDeadline("delete", opts?.timeoutMs ?? this.timeoutMs, (abortSignal) =>
+      client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }), { abortSignal }),
+    );
   }
 }
 
@@ -119,6 +167,7 @@ export class SupabaseStore implements ObjectStore {
     private readonly bucket: string,
     private readonly key: string,
     private readonly fetchImpl: typeof fetch = fetch,
+    private readonly timeoutMs: number = DEFAULT_STORAGE_TIMEOUT_MS,
   ) {}
 
   private headers(extra: Record<string, string> = {}) {
@@ -133,41 +182,59 @@ export class SupabaseStore implements ObjectStore {
     return `${this.baseUrl.replace(/\/$/, "")}/storage/v1/object/${encodeURIComponent(this.bucket)}/${key}`;
   }
 
-  async put(key: string, bytes: Uint8Array, contentType: string) {
-    const res = await this.fetchImpl(this.url(key), {
-      method: "POST",
-      headers: this.headers({ "Content-Type": contentType, "x-upsert": "true", "Cache-Control": "private, no-store" }),
-      body: bytes as unknown as BodyInit,
+  async put(key: string, bytes: Uint8Array, contentType: string, opts?: StoreOptions) {
+    const url = this.url(key);
+    await withStorageDeadline("upload", opts?.timeoutMs ?? this.timeoutMs, async (signal) => {
+      const res = await this.fetchImpl(url, {
+        method: "POST",
+        headers: this.headers({ "Content-Type": contentType, "x-upsert": "true", "Cache-Control": "private, no-store" }),
+        body: bytes as unknown as BodyInit,
+        signal,
+      });
+      if (!res.ok) throw new Error(`Storage upload failed (${res.status}).`);
     });
-    if (!res.ok) throw new Error(`Storage upload failed (${res.status}).`);
   }
 
-  async get(key: string) {
-    const res = await this.fetchImpl(this.url(key), { headers: this.headers(), cache: "no-store" });
-    if (res.status === 404 || res.status === 400) return null;
-    if (!res.ok) throw new Error(`Storage download failed (${res.status}).`);
-    return new Uint8Array(await res.arrayBuffer());
+  async get(key: string, opts?: StoreOptions) {
+    const url = this.url(key);
+    return withStorageDeadline("download", opts?.timeoutMs ?? this.timeoutMs, async (signal) => {
+      const res = await this.fetchImpl(url, { headers: this.headers(), cache: "no-store", signal });
+      if (res.status === 404 || res.status === 400) return null;
+      if (!res.ok) throw new Error(`Storage download failed (${res.status}).`);
+      return new Uint8Array(await res.arrayBuffer());
+    });
   }
 
-  async delete(key: string) {
+  async delete(key: string, opts?: StoreOptions) {
     assertSafeKey(key);
-    const res = await this.fetchImpl(`${this.baseUrl.replace(/\/$/, "")}/storage/v1/object/${encodeURIComponent(this.bucket)}`, {
-      method: "DELETE",
-      headers: this.headers({ "Content-Type": "application/json" }),
-      body: JSON.stringify({ prefixes: [key] }),
+    await withStorageDeadline("delete", opts?.timeoutMs ?? this.timeoutMs, async (signal) => {
+      const res = await this.fetchImpl(`${this.baseUrl.replace(/\/$/, "")}/storage/v1/object/${encodeURIComponent(this.bucket)}`, {
+        method: "DELETE",
+        headers: this.headers({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ prefixes: [key] }),
+        signal,
+      });
+      if (!res.ok && res.status !== 404) throw new Error(`Storage delete failed (${res.status}).`);
     });
-    if (!res.ok && res.status !== 404) throw new Error(`Storage delete failed (${res.status}).`);
   }
 }
 
-const PROBE_KEY = `staging/health/probe/${"0".repeat(64)}.wav`;
-
-/** Writes, reads back and removes a tiny object, proving the configured store is reachable and writable. */
+/**
+ * Writes, reads back and removes a tiny object, proving the configured store is reachable and writable. Every call uses
+ * its own key: concurrent readiness checks (or a check overlapping a deploy check) must never overwrite or delete each
+ * other's object, which would report a healthy store as broken.
+ */
 export async function probeObjectStore(s: ObjectStore = objectStore()): Promise<void> {
-  const payload = new TextEncoder().encode(`probe-${Date.now()}`);
-  await s.put(PROBE_KEY, payload, "audio/wav");
-  const back = await s.get(PROBE_KEY);
-  await s.delete(PROBE_KEY);
+  const key = `staging/health/probe/${randomBytes(32).toString("hex")}.wav`;
+  const payload = new TextEncoder().encode(`probe-${randomUUID()}`);
+  let back: Uint8Array | null = null;
+  try {
+    await s.put(key, payload, "audio/wav");
+    back = await s.get(key);
+  } finally {
+    // Best effort: a failed cleanup must not hide the real result, and a leftover probe is a few bytes under staging/.
+    await s.delete(key).catch(() => undefined);
+  }
   if (!back || back.byteLength !== payload.byteLength || back.some((b, i) => b !== payload[i])) {
     throw new Error("Object store read-back did not match what was written.");
   }
@@ -182,10 +249,10 @@ export function objectStore(): ObjectStore {
     if (!e.SUPABASE_URL || !e.SUPABASE_SERVICE_ROLE_KEY || !e.OBJECT_STORAGE_BUCKET) {
       throw new Error("SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY and OBJECT_STORAGE_BUCKET are required for the supabase storage driver.");
     }
-    store = new SupabaseStore(e.SUPABASE_URL, e.OBJECT_STORAGE_BUCKET, e.SUPABASE_SERVICE_ROLE_KEY);
+    store = new SupabaseStore(e.SUPABASE_URL, e.OBJECT_STORAGE_BUCKET, e.SUPABASE_SERVICE_ROLE_KEY, fetch, e.STORAGE_TIMEOUT_MS);
   } else if (e.STORAGE_DRIVER === "s3") {
     if (!e.OBJECT_STORAGE_BUCKET) throw new Error("OBJECT_STORAGE_BUCKET is required for the s3 storage driver.");
-    store = new S3Store(e.OBJECT_STORAGE_BUCKET);
+    store = new S3Store(e.OBJECT_STORAGE_BUCKET, e.STORAGE_TIMEOUT_MS);
   } else {
     store = new LocalStore(e.LOCAL_STORAGE_DIR);
   }
