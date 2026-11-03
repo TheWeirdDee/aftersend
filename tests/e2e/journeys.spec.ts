@@ -81,8 +81,8 @@ test("Journey E: another workspace cannot read or change a notice", async ({ pag
 
   const other = await browser.newContext();
   const intruder = await other.newPage();
-  await intruder.goto("/demo");
-  await intruder.getByRole("button", { name: "Start writing" }).click();
+  await intruder.goto("/");
+  await intruder.getByRole("button", { name: "Create an announcement" }).first().click();
   await expect(intruder).toHaveURL(/\/edit$/);
   const base = new URL(page.url()).origin;
   const headers = { Origin: base, "Content-Type": "application/json" };
