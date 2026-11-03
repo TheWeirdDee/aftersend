@@ -14,8 +14,13 @@ export default defineConfig({
   reporter: [["list"], ["html", { open: "never" }]],
   use: { baseURL: `http://localhost:${PORT}`, trace: "retain-on-failure" },
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } },
-    { name: "mobile", use: { ...devices["Pixel 7"], viewport: { width: 390, height: 844 } }, testMatch: /mobile|listener/ },
+    // Chromium is started muted: it then does not depend on the host's audio output device, which on a busy Windows machine fails
+    // intermittently with AUDIO_RENDERER_ERROR (see docs/DEFECT_LOG.md, R2); a null audio sink is used instead. Playback logic is still real: the element plays and reports progress.
+    { name: "desktop", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 }, launchOptions: { args: ["--mute-audio", "--disable-audio-output"] } } },
+    { name: "mobile", use: { ...devices["Pixel 7"], viewport: { width: 390, height: 844 }, launchOptions: { args: ["--mute-audio", "--disable-audio-output"] } }, testMatch: /mobile|listener/ },
+    // Real playback in the other two engines. Run with: npx playwright test --project=firefox --project=webkit
+    { name: "firefox", use: { ...devices["Desktop Firefox"], viewport: { width: 1280, height: 800 } }, testMatch: /cross-browser/ },
+    { name: "webkit", use: { ...devices["Desktop Safari"], viewport: { width: 1280, height: 800 } }, testMatch: /cross-browser/ },
   ],
   webServer: {
     // The helper is cross-platform (no `rm -rf`) and only ever touches .data/e2e.
@@ -47,6 +52,9 @@ export default defineConfig({
       LOCAL_STORAGE_DIR: ".data/e2e/objects",
       DATABASE_URL: "",
       SYNTHESIS_LIMIT_PER_HOUR: "200",
+      // One IP makes every request in the suite, so the guest limits (20 an hour each, 400 a day for all guests) are lifted here.
+      GUEST_SYNTHESIS_LIMIT_PER_HOUR: "500",
+      GUEST_SYNTHESIS_PER_DAY: "100000",
       AUTH_EMAILS_PER_DAY: "100000",
       AUTH_REQUESTS_PER_IP_PER_HOUR: "500",
       AUTH_VERIFY_PER_IP_PER_HOUR: "500",
