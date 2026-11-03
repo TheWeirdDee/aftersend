@@ -1,0 +1,61 @@
+{
+  "target": "https://aftersend-sigma.vercel.app",
+  "at": "2026-11-03T09:56:22.363Z",
+  "kind": "live guest journey (real AssemblyAI speech; no email, so sign-in, recovery and the two-account boundary are NOT covered here)",
+  "passed": 7,
+  "failed": 0,
+  "notRun": 0,
+  "steps": [
+    {
+      "name": "start a guest session with the sample announcement",
+      "ok": true,
+      "ms": 4059
+    },
+    {
+      "name": "real speech for the first announcement (AssemblyAI)",
+      "ok": true,
+      "ms": 9153,
+      "label": "first",
+      "latencyMs": 6334,
+      "version": 1,
+      "sha256": "39a4a39f0ccc63d85b1bfb813de7fe737960aa8248c212e573f5c580e4729f02",
+      "bytes": 760364,
+      "sampleRate": 24000,
+      "seconds": 15.8,
+      "providerLatencyMs": 1477
+    },
+    {
+      "name": "publish it; the public link serves the text and audio",
+      "ok": true,
+      "ms": 7487
+    },
+    {
+      "name": "correct 3:00 PM to 4:00 PM and prepare real speech again",
+      "ok": true,
+      "ms": 10606,
+      "label": "corrected",
+      "latencyMs": 5636,
+      "version": 1,
+      "sha256": "76eb0aca15b81de88d8d50c31ed9eb483c7d8511275f6233d1d92c818efa7caf",
+      "bytes": 871724,
+      "sampleRate": 24000,
+      "seconds": 18.2,
+      "providerLatencyMs": 1677
+    },
+    {
+      "name": "approve the correction: the same link now serves 4:00 PM and new audio",
+      "ok": true,
+      "ms": 6556
+    },
+    {
+      "name": "the superseded audio is refused at the public link",
+      "ok": true,
+      "ms": 505
+    },
+    {
+      "name": "withdraw: the link says so and serves no audio",
+      "ok": true,
+      "ms": 3587
+    }
+  ]
+}
