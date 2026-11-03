@@ -25,7 +25,8 @@ const stamp = new Date().toISOString().replace(/[:.]/g, "-");
 const dir = path.join("evidence", "demo-video", stamp);
 fs.mkdirSync(dir, { recursive: true });
 
-const browser = await chromium.launch();
+// A null audio sink: the footage is silent, and this keeps playback from depending on the recording machine's sound device.
+const browser = await chromium.launch({ args: ["--mute-audio", "--disable-audio-output"] });
 const context = await browser.newContext({ viewport: { width: 1280, height: 720 }, recordVideo: { dir, size: { width: 1280, height: 720 } }, colorScheme: "light" });
 const page = await context.newPage();
 const t0 = Date.now();
