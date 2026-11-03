@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiFailure } from "@/lib/client/api";
 import { factChanges, suggestUpdatePreface } from "@/lib/notices/diff";
 import { createSerialSaver, type SerialSaver } from "@/lib/client/serial-saver";
+import { createSpeechSync, type SpeechSync } from "@/lib/client/speech-sync";
 import { detectCriticalFacts } from "@/lib/notices/facts";
 import { toSpeechText } from "@/lib/notices/normalize-speech";
 import { MAX_NOTICE_CHARS, MAX_TITLE_CHARS } from "@/lib/notices/validation";
@@ -45,12 +46,12 @@ export type EditorProps = {
   noticeId: string;
   noticeState: "draft" | "published" | "withdrawn";
   publicPath: string;
-  isDemo: boolean;
   sourceUrl: string | null;
   base: { revisionId: string; revisionNumber: number; title: string; displayText: string; voiceId: string } | null;
   draft: {
     revisionId: string;
     version: number;
+    status: RevStatus;
     title: string;
     displayText: string;
     updatePreface: string | null;
@@ -61,7 +62,12 @@ export type EditorProps = {
 };
 
 type SaveState = "saved" | "dirty" | "saving" | "error" | "conflict";
-type Phase = "idle" | "preparing" | "synthesizing" | "publishing";
+type Phase = "idle" | "publishing";
+/** How long after the last keystroke the spoken preview is refreshed. Long enough that a sentence is finished, short enough to feel automatic. */
+const AUTO_SPEECH_DELAY_MS = 1800;
+/** Too little text to be worth a paid speech request. */
+const MIN_SPOKEN_CHARS = 8;
+const formKey = (f: Form) => JSON.stringify([f.title.trim(), f.text.trim(), f.preface.trim(), f.voiceId]);
 type Form = { title: string; text: string; preface: string; voiceId: string; sourceUrl: string };
 type Dialog = { kind: "published" | "stale"; message: string } | null;
 
@@ -91,17 +97,25 @@ export function NoticeEditor(props: EditorProps) {
   const [save, setSave] = useState<SaveState>("saved");
   const [status, setStatus] = useState<StatusResponse | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
-  const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [dialog, setDialog] = useState<Dialog>(null);
-  const [listened, setListened] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
+  // Listening and confirmation belong to one specific audio file, so a new preview starts from scratch.
+  const [listenedFor, setListenedFor] = useState<string | null>(null);
+  const [confirmedFor, setConfirmedFor] = useState<string | null>(null);
+  // Speech: a request from this tab is running; a refresh is waiting for the pause; the last request failed.
+  const [generating, setGenerating] = useState(false);
+  const [waiting, setWaiting] = useState(false);
+  const [speechError, setSpeechError] = useState<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // The save loop reads these refs, not state, so a request never acts on a stale render.
   const latest = useRef<Form>(initialForm);
   const revisionIdRef = useRef(revisionId);
   const versionRef = useRef(version);
   const clientToken = useRef(newClientToken());
+  const statusRef = useRef<StatusResponse | null>(null);
+  const syncRef = useRef<SpeechSync | null>(null);
+  // The exact script that failed to become speech. It is not retried automatically until the text changes.
+  const failedKey = useRef<string | null>(null);
 
   const isCorrection = !!base;
   const changes = useMemo(() => (base ? factChanges(base.displayText, text) : []), [base, text]);
@@ -119,6 +133,7 @@ export function NoticeEditor(props: EditorProps) {
 
   const refreshStatus = useCallback(async (id: string) => {
     const s = await api<StatusResponse>(`/api/revisions/${id}/status`);
+    statusRef.current = s;
     setStatus(s);
     return s;
   }, []);
@@ -195,14 +210,15 @@ export function NoticeEditor(props: EditorProps) {
     const next = { ...latest.current, ...patch };
     latest.current = next;
     setForm(next);
-    setListened(false);
-    setConfirmed(false);
+    setConfirmedFor(null);
     saver().submit(next);
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       saveTimer.current = null;
       void saver().flush();
     }, 700);
+    // The spoken preview is out of date as of this keystroke. A new one is requested once typing pauses.
+    syncRef.current?.touch();
   };
 
   /** Sends every pending edit. Resolves to the revision id once it is saved, or null if it could not be. */
@@ -219,7 +235,11 @@ export function NoticeEditor(props: EditorProps) {
     if (!revisionId) return;
     let live = true;
     api<StatusResponse>(`/api/revisions/${revisionId}/status`)
-      .then((s) => live && setStatus(s))
+      .then((s) => {
+        if (!live) return;
+        statusRef.current = s;
+        setStatus(s);
+      })
       .catch(() => {});
     return () => {
       live = false;
@@ -235,7 +255,11 @@ export function NoticeEditor(props: EditorProps) {
     let live = true;
     const t = setInterval(() => {
       api<StatusResponse>(`/api/revisions/${revisionId}/status`)
-        .then((s) => live && setStatus(s))
+        .then((s) => {
+          if (!live) return;
+          statusRef.current = s;
+          setStatus(s);
+        })
         .catch(() => {});
     }, 1500);
     return () => {
@@ -243,13 +267,6 @@ export function NoticeEditor(props: EditorProps) {
       clearInterval(t);
     };
   }, [synthesizing, revisionId]);
-
-  useEffect(() => {
-    if (phase !== "synthesizing" && phase !== "preparing") return;
-    const started = Date.now();
-    const t = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 500);
-    return () => clearInterval(t);
-  }, [phase]);
 
   useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => {
@@ -268,34 +285,77 @@ export function NoticeEditor(props: EditorProps) {
     return () => window.removeEventListener("online", retry);
   }, []);
 
-  const generate = async () => {
-    setError(null);
-    setElapsed(0);
-    setPhase("preparing");
+  /** Why no spoken preview is requested for the current text, or null when one should be. */
+  const speechBlocker = (f: Form, hasRevision: boolean): string | null => {
+    if (!props.provider.ok) return props.provider.reason ?? "The voice is unavailable right now.";
+    if (!f.title.trim() || !f.text.trim()) return "Add a title and the announcement to hear it.";
+    if (f.text.trim().length < MIN_SPOKEN_CHARS) return "Keep writing: the spoken preview starts once there is a sentence to read.";
+    const first = (v: string) => detectCriticalFacts(v).find((x) => x.ambiguous);
+    if (first(f.title) || first(f.text) || (isCorrection && first(f.preface))) return "Say which day or time you mean, then the voice can be prepared.";
+    if (unchangedFromBase(f) && !hasRevision) return "Change the announcement and the corrected voice will be prepared for you.";
+    return null;
+  };
+
+  /** One speech request: save what is typed, then ask for audio for exactly that text. Runs only through the sync controller. */
+  const speak = async () => {
+    const startedWith = formKey(latest.current);
     const id = await flush();
-    if (!id) {
-      setPhase("idle");
-      if (saver().state !== "error") {
-        setError(unchanged ? "Change the notice before generating new audio." : "Save the notice first.");
-      }
-      return;
-    }
-    setPhase("synthesizing");
-    setListened(false);
-    setConfirmed(false);
+    if (!id) return; // not saveable yet, or the save failed; the save status says which
+    const f = latest.current;
+    if (formKey(f) !== startedWith) return; // typed while saving: the controller schedules the next request
+    if (speechBlocker(f, !!revisionIdRef.current)) return;
+    const current = statusRef.current;
+    if (current?.status === "preview_ready" && current.version === versionRef.current) return; // this exact text already has its voice
+    if (failedKey.current === formKey(f)) return; // failed for this exact text: wait for an edit or the Retry button
+    const generation = syncRef.current?.generation ?? 0;
+    setSpeechError(null);
+    setGenerating(true);
     try {
       await api(`/api/revisions/${id}/generate`, { method: "POST" });
+      failedKey.current = null;
     } catch (e) {
-      if (e instanceof ApiFailure && e.error.code === "synthesis_in_progress") {
-        // Another request already owns this exact revision; the status poll follows its result.
+      const stale = (syncRef.current?.generation ?? 0) !== generation; // edited meanwhile: whatever happened to the old text no longer matters
+      if (e instanceof ApiFailure && (e.error.code === "synthesis_in_progress" || e.error.details?.reason === "superseded_audio")) {
+        // Another request owns this text, or the text moved on. The newer request, or the status poll, has the answer.
+      } else if (stale) {
+        // An old request failed; the newer text will be requested on its own.
       } else if (e instanceof ApiFailure && e.error.code === "conflict") {
         setDialog({ kind: "published", message: e.message });
       } else {
-        setError(e instanceof ApiFailure ? e.message : "Audio generation failed.");
+        failedKey.current = formKey(f);
+        setSpeechError(e instanceof ApiFailure ? e.message : "The voice could not be prepared.");
       }
     }
     await refreshStatus(id).catch(() => {});
-    setPhase("idle");
+    setGenerating(false);
+  };
+  const speakRef = useRef(speak);
+  useEffect(() => {
+    speakRef.current = speak;
+  });
+  useEffect(() => {
+    const sync = createSpeechSync({
+      delayMs: AUTO_SPEECH_DELAY_MS,
+      run: () => speakRef.current(),
+      onChange: () => setWaiting(sync.pending),
+    });
+    syncRef.current = sync;
+    // A draft that was saved but never spoken (a new announcement, or one reopened) is prepared straight away.
+    let starter: ReturnType<typeof setTimeout> | null = null;
+    if (props.draft?.status === "draft") starter = setTimeout(() => sync.now(), 300);
+    return () => {
+      if (starter) clearTimeout(starter);
+      sync.cancel();
+      syncRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- created once; it always calls the newest speak() through the ref
+  }, []);
+
+  /** The Retry audio button: ask again now for the current text. */
+  const retryAudio = () => {
+    failedKey.current = null;
+    setSpeechError(null);
+    syncRef.current?.now();
   };
 
   const approve = async () => {
@@ -342,80 +402,81 @@ export function NoticeEditor(props: EditorProps) {
 
   // Ready means: nothing unsaved, and the preview on screen belongs to exactly the version that was saved.
   const ready = status?.status === "preview_ready" && !!status.previewUrl && save === "saved" && status.version === version;
-  const spokenRef = useRef<HTMLElement>(null);
-  const previewUrl = ready ? status?.previewUrl : null;
-
-  // On narrow screens the player sits below the text; bring it into view once a preview is ready.
-  useEffect(() => {
-    if (previewUrl && window.matchMedia("(max-width: 1023px)").matches) {
-      spokenRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }, [previewUrl]);
+  const previewUrl = ready ? status?.previewUrl ?? null : null;
+  const listened = !!previewUrl && listenedFor === previewUrl;
+  const confirmed = !!previewUrl && confirmedFor === previewUrl;
   const lastAttempt = status?.attempts[0];
-  const busy = phase !== "idle" || (synthesizing && !stuck);
-  // Fields stay locked for as long as a claim exists, even a stalled one: the server refuses edits until it is re-claimed.
-  const locked = busy || synthesizing;
+  const busy = phase !== "idle";
+  // Text stays editable while the voice is being prepared; only publishing freezes it.
+  const locked = busy;
+  const blocker = speechBlocker(form, !!revisionId);
+  const voiceLabel = props.voices.find((v) => v.id === voiceId)?.label ?? null;
+
+  type Kind = "idle" | "saving" | "waiting" | "updating" | "ready" | "failed" | "blocked";
+  const failedMessage =
+    speechError ??
+    (stuck
+      ? "Preparing the voice seems to have stalled. Your text is safe."
+      : status?.status === "failed"
+        ? lastAttempt?.errorMessage ?? "The voice could not be prepared."
+        : null);
+  const kind: Kind =
+    save === "dirty" || save === "saving"
+      ? "saving"
+      : generating || (synthesizing && !stuck)
+        ? "updating"
+        : ready
+          ? "ready"
+          : failedMessage && !blocker
+            ? "failed"
+            : blocker
+              ? "blocked"
+              : waiting || !status || status.status === "draft"
+                ? "waiting"
+                : "idle";
+
+  const kindLabel: Record<Kind, string> = {
+    idle: "Ready when you are",
+    saving: "Saving…",
+    waiting: "Voice out of date · updating when you pause",
+    updating: "Updating voice…",
+    ready: "Ready to listen",
+    failed: "Voice update failed",
+    blocked: blocker ?? "",
+  };
 
   const approveBlocker = !props.provider.ok
-    ? "Speech generation is unavailable."
+    ? "The voice is unavailable right now."
     : !ready
-      ? "Generate the audio preview first."
+      ? "Publishing unlocks once the spoken preview of this version is ready."
       : !listened
-        ? "Play the whole preview before approving."
+        ? "Listen to the whole preview to continue."
         : !confirmed
-          ? "Confirm you've checked the critical facts."
+          ? "Tick the box to confirm you checked the details."
           : null;
 
-  const generateBlocker = !props.provider.ok
-    ? props.provider.reason
-    : ambiguous
-      ? "Resolve the highlighted date first."
-      : !title.trim() || !text.trim()
-        ? "Add a title and notice text."
-        : unchanged && !revisionId
-          ? "Make a change to the notice to create a correction."
-          : null;
-
-  const phaseLabel =
-    phase === "preparing"
-      ? "Preparing script"
-      : phase === "synthesizing"
-        ? `Synthesizing audio and checking the file · ${elapsed}s`
-        : phase === "publishing"
-          ? "Publishing"
-          : status?.status === "preview_ready"
-            ? "Ready to preview"
-            : status?.status === "failed"
-              ? "Generation failed"
-              : synthesizing
-                ? stuck
-                  ? "Generation stalled"
-                  : "Synthesizing audio"
-                : "No audio generated yet";
-
-  const approveLabel = isCorrection ? "Approve update" : "Approve and publish";
+  const approveLabel = isCorrection ? "Update announcement" : "Publish announcement";
+  const saveLabel =
+    save === "saving"
+      ? "Saving…"
+      : save === "dirty"
+        ? "Unsaved changes"
+        : save === "error"
+          ? "Not saved"
+          : save === "conflict"
+            ? "Conflict: not saved"
+            : revisionId
+              ? "Saved"
+              : "No changes yet";
 
   return (
-    <div className="pb-28 lg:pb-0">
-      <div className="grid gap-8 lg:grid-cols-[1.2fr_1fr] lg:gap-10">
+    <div>
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-10">
         <div className="min-w-0 space-y-6">
-          <div className="flex items-center justify-between gap-3 text-[13px]">
-            <span className="text-muted">
-              {isCorrection ? `Correcting version ${base!.revisionNumber}` : "First version"}
-              {props.isDemo ? <span className="pill ml-2 border-warn/40 text-warn">Demo data</span> : null}
-            </span>
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-[13px]">
+            <span className="text-muted">{isCorrection ? "Updating the live announcement" : "New announcement"}</span>
             <span aria-live="polite" className="font-mono text-faint">
-              {save === "saving"
-                ? "Saving…"
-                : save === "dirty"
-                  ? "Unsaved changes"
-                  : save === "error"
-                    ? "Not saved"
-                    : save === "conflict"
-                      ? "Conflict: not saved"
-                      : revisionId
-                        ? "Draft saved"
-                        : "No changes"}
+              {saveLabel}
               {save === "error" ? (
                 <button type="button" className="ml-2 text-signal underline underline-offset-4" onClick={() => void saver().flush()}>
                   Retry
@@ -423,6 +484,18 @@ export function NoticeEditor(props: EditorProps) {
               ) : null}
             </span>
           </div>
+
+          <a
+            href="#preview"
+            className="flex items-center gap-2 rounded-xl border border-line bg-surface px-3.5 py-2.5 text-[13.5px] text-muted lg:hidden"
+            aria-hidden="true"
+            tabIndex={-1}
+          >
+            {kind === "updating" || kind === "saving" ? <Spinner className="size-3.5" /> : <Wave className="size-3.5 text-signal" />}
+            <span className="min-w-0 flex-1 truncate">{kindLabel[kind]}</span>
+            <span className="text-fg">Jump to preview ↓</span>
+          </a>
+
           <div>
             <label htmlFor="title" className="field-label">
               Title
@@ -434,6 +507,7 @@ export function NoticeEditor(props: EditorProps) {
               maxLength={MAX_TITLE_CHARS}
               onChange={(e) => edit({ title: e.target.value })}
               disabled={locked}
+              placeholder="e.g. Early pickup on Friday"
               aria-invalid={!!ambiguousBy.title}
               aria-describedby={ambiguousBy.title ? "title-problem" : undefined}
             />
@@ -441,20 +515,22 @@ export function NoticeEditor(props: EditorProps) {
           </div>
           <div>
             <label htmlFor="text" className="field-label">
-              Notice text
+              Announcement
             </label>
             <textarea
               id="text"
-              className="input min-h-[260px] resize-y leading-[1.65]"
+              className="input min-h-[240px] resize-y leading-[1.65]"
               value={text}
               maxLength={MAX_NOTICE_CHARS}
               onChange={(e) => edit({ text: e.target.value })}
               disabled={locked}
               aria-invalid={!!ambiguousBy.text}
-              aria-describedby={ambiguousBy.text ? "text-problem" : undefined}
+              aria-describedby={ambiguousBy.text ? "text-problem" : "text-hint"}
             />
             <FieldProblem id="text-problem" fact={ambiguousBy.text} />
-            <p className="field-hint">Listeners hear exactly this text, read aloud after the title.</p>
+            <p id="text-hint" className="field-hint">
+              Listeners hear exactly this text after the title. The voice updates by itself when you stop typing.
+            </p>
           </div>
           <div>
             <label htmlFor="source" className="field-label">
@@ -469,7 +545,7 @@ export function NoticeEditor(props: EditorProps) {
               placeholder="https://"
               disabled={locked}
             />
-            {props.noticeState !== "draft" ? <p className="field-hint">A changed link goes live when you publish this correction, not before.</p> : null}
+            {props.noticeState !== "draft" ? <p className="field-hint">A changed link goes live when you update the announcement, not before.</p> : null}
           </div>
           <FactsPanel text={text} changedValues={changes.map((c) => c.currentValue ?? "")} />
 
@@ -477,18 +553,26 @@ export function NoticeEditor(props: EditorProps) {
             <section aria-labelledby="diff-heading" className="space-y-4 rounded-xl border border-line bg-surface p-4 sm:p-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 id="diff-heading" className="text-[15px] font-medium">
-                  Changes from version {base!.revisionNumber}
+                  What is changing
                 </h3>
-                {changes.length > 0 ? (
-                  <span className="text-[13px] text-muted">
-                    {changes.map((c) => `${c.kind}: ${c.previousValue ?? "—"} → ${c.currentValue ?? "removed"}`).join(" · ")}
-                  </span>
-                ) : null}
               </div>
+              {changes.length > 0 ? (
+                <ul className="flex flex-wrap gap-2">
+                  {changes.map((c, i) => (
+                    <li key={i} className="pill border-line-strong py-1 text-[13px] text-fg">
+                      <span className="text-faint capitalize">{c.kind}</span>
+                      <span className="text-removed line-through decoration-removed/60">{c.previousValue ?? "—"}</span>
+                      <span aria-hidden>→</span>
+                      <span className="sr-only">changed to</span>
+                      <span className="text-signal">{c.currentValue ?? "removed"}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
               <DiffView before={base!.displayText} after={text} />
               <div className="border-t border-line pt-4">
                 <label htmlFor="preface" className="field-label">
-                  Update note <span className="font-normal text-muted">(optional, spoken first)</span>
+                  Spoken correction note <span className="font-normal text-muted">(optional, read first)</span>
                 </label>
                 <input
                   id="preface"
@@ -512,17 +596,17 @@ export function NoticeEditor(props: EditorProps) {
                     Use suggestion: “{suggestion}”
                   </button>
                 ) : null}
-                <p className="field-hint">Only what you write here is spoken. AfterSend never adds a reason for the change.</p>
+                <p className="field-hint">Only what you write here is read aloud. AfterSend never adds a reason for the change.</p>
               </div>
             </section>
           ) : null}
         </div>
 
-        <aside ref={spokenRef} aria-labelledby="spoken-heading" className="min-w-0 scroll-mt-20 lg:sticky lg:top-24 lg:self-start">
+        <aside id="preview" aria-labelledby="spoken-heading" className="min-w-0 scroll-mt-20 lg:sticky lg:top-24 lg:self-start">
           <div className="card space-y-5 p-5 sm:p-6">
             <div className="flex items-center justify-between gap-3">
               <h2 id="spoken-heading" className="flex items-center gap-2 text-[17px] font-semibold tracking-[-0.02em]">
-                <Wave className="size-[18px] text-signal" /> Spoken output
+                <Wave className="size-[18px] text-signal" /> Spoken preview
               </h2>
               {status?.audio?.providerKind === "test" ? <TestAudioBadge /> : null}
             </div>
@@ -546,35 +630,42 @@ export function NoticeEditor(props: EditorProps) {
               </select>
             </div>
 
-            <div className="rounded-xl border border-line bg-ink-2 p-4">
-              <p role="status" aria-live="polite" className="flex items-center gap-2 text-[13.5px] text-muted">
-                {busy ? <Spinner className="size-3.5" /> : <span className={`size-2 rounded-full ${ready ? "bg-signal" : status?.status === "failed" ? "bg-danger" : "bg-line-strong"}`} aria-hidden />}
-                {phaseLabel}
+            <div className="rounded-xl border border-line bg-ink-2 p-4" data-speech={kind}>
+              <p role="status" aria-live="polite" className="flex items-start gap-2 text-[14px] leading-5 text-muted">
+                {kind === "updating" || kind === "saving" ? (
+                  <Spinner className="mt-0.5 size-3.5 shrink-0" />
+                ) : (
+                  <span
+                    className={`mt-1.5 size-2 shrink-0 rounded-full ${kind === "ready" ? "bg-signal" : kind === "failed" ? "bg-danger" : kind === "waiting" ? "bg-warn" : "bg-line-strong"}`}
+                    aria-hidden
+                  />
+                )}
+                <span>{kindLabel[kind]}</span>
               </p>
               <AnimatePresence mode="wait" initial={false}>
-                {ready && status?.previewUrl ? (
-                  <motion.div key={status.previewUrl} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }} className="mt-3">
-                    <AudioPlayer key={status.previewUrl} src={status.previewUrl} label="audio preview" durationHintMs={status.audio?.durationMs} onListened={() => setListened(true)} compact />
-                    <p className="mt-3 font-mono text-[11.5px] leading-5 text-faint">
-                      {formatDuration(status.audio?.durationMs)} · generated in {status.audio?.providerLatencyMs != null ? `${(status.audio.providerLatencyMs / 1000).toFixed(1)}s` : "–"} ·{" "}
-                      {lastAttempt?.modelId ?? "model n/a"} · sha256 {status.audio?.sha256.slice(0, 10)}…
+                {previewUrl ? (
+                  <motion.div key={previewUrl} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }} className="mt-3">
+                    <AudioPlayer key={previewUrl} src={previewUrl} label="spoken preview" durationHintMs={status?.audio?.durationMs} onListened={() => setListenedFor(previewUrl)} compact />
+                    <p className="mt-3 text-[12.5px] leading-5 text-faint">
+                      {formatDuration(status?.audio?.durationMs)}
+                      {voiceLabel ? ` · ${voiceLabel}` : ""}
                     </p>
                   </motion.div>
                 ) : null}
               </AnimatePresence>
-              {status?.status === "failed" && lastAttempt?.errorMessage && phase === "idle" ? (
-                <p className="mt-3 text-[13.5px] leading-5 text-danger">{lastAttempt.errorMessage} Your text is safe; generate again to retry.</p>
-              ) : null}
-              {stuck && phase === "idle" ? (
-                <p className="mt-3 text-[13.5px] leading-5 text-warn">
-                  Audio generation seems to have stalled. Your text is safe; generate again to retry.
-                </p>
+              {kind === "failed" && failedMessage ? (
+                <div className="mt-3 space-y-3">
+                  <p className="text-[13.5px] leading-5 text-danger">{failedMessage} Your text is saved.</p>
+                  <button type="button" className="btn-secondary btn-sm" onClick={retryAudio} disabled={generating}>
+                    Retry audio
+                  </button>
+                </div>
               ) : null}
             </div>
 
             <details className="group rounded-xl border border-line">
               <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-[13.5px] text-muted hover:text-fg [&::-webkit-details-marker]:hidden">
-                Exact spoken script
+                Exactly what is read aloud
                 <span aria-hidden className="transition-transform group-open:rotate-45">+</span>
               </summary>
               <p className="border-t border-line px-4 py-3 text-[13.5px] leading-6 text-muted">{speechScript}</p>
@@ -592,48 +683,31 @@ export function NoticeEditor(props: EditorProps) {
                 className="mt-0.5 size-[18px] shrink-0 accent-[var(--color-signal)]"
                 checked={confirmed}
                 disabled={!ready || !listened || busy}
-                onChange={(e) => setConfirmed(e.target.checked)}
+                onChange={(e) => setConfirmedFor(e.target.checked ? previewUrl : null)}
               />
-              I listened to the preview and checked the dates, times, places and contact details.
+              I listened to this preview and checked the dates, times, places and phone numbers.
             </label>
 
-            <div className="hidden gap-2 sm:flex lg:flex">
-              <ActionButtons
-                generate={generate}
-                approve={approve}
-                busy={busy}
-                ready={ready}
-                generateBlocker={generateBlocker}
-                approveBlocker={approveBlocker}
-                approveLabel={approveLabel}
-                phase={phase}
-              />
-            </div>
+            <button
+              type="button"
+              onClick={approve}
+              disabled={busy || !!approveBlocker}
+              aria-describedby="approve-help"
+              className="btn-primary h-12 w-full"
+            >
+              {phase === "publishing" ? <Spinner /> : <Check />}
+              {approveLabel}
+            </button>
             <p className="text-[13px] leading-5 text-faint" id="approve-help">
-              {approveBlocker ?? (isCorrection ? "Approving makes this the version everyone hears at the existing link." : "Approving publishes the notice at a new shareable link.")}
+              {approveBlocker ?? (isCorrection ? "The same link will play this version for everyone." : "You get a link to share. Nothing is public until you do this.")}
             </p>
             {isCorrection ? (
               <Link href={props.publicPath} target="_blank" className="btn-ghost btn-sm -ml-3">
-                <External /> Open current listener page
+                <External /> Open the live announcement
               </Link>
             ) : null}
           </div>
         </aside>
-      </div>
-
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-ink/95 p-3 backdrop-blur-xl sm:hidden">
-        <div className="flex gap-2">
-          <ActionButtons
-            generate={generate}
-            approve={approve}
-            busy={busy}
-            ready={ready}
-            generateBlocker={generateBlocker}
-            approveBlocker={approveBlocker}
-            approveLabel={isCorrection ? "Approve" : "Publish"}
-            phase={phase}
-          />
-        </div>
       </div>
 
       <AnimatePresence>
@@ -752,41 +826,5 @@ function ConflictDialog({
         </div>
       </motion.div>
     </motion.div>
-  );
-}
-
-function ActionButtons(p: {
-  generate: () => void;
-  approve: () => void;
-  busy: boolean;
-  ready: boolean;
-  generateBlocker: string | null;
-  approveBlocker: string | null;
-  approveLabel: string;
-  phase: Phase;
-}) {
-  return (
-    <>
-      <button
-        type="button"
-        onClick={p.generate}
-        disabled={p.busy || !!p.generateBlocker}
-        title={p.generateBlocker ?? undefined}
-        className={`${p.ready ? "btn-secondary" : "btn-primary"} h-12 flex-1`}
-      >
-        {p.phase === "synthesizing" || p.phase === "preparing" ? <Spinner /> : null}
-        {p.ready ? "Regenerate" : "Generate preview"}
-      </button>
-      <button
-        type="button"
-        onClick={p.approve}
-        disabled={p.busy || !!p.approveBlocker}
-        aria-describedby="approve-help"
-        className={`${p.ready ? "btn-primary" : "btn-secondary"} h-12 flex-1`}
-      >
-        {p.phase === "publishing" ? <Spinner /> : <Check />}
-        {p.approveLabel}
-      </button>
-    </>
   );
 }
