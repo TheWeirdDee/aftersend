@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Link as LinkIcon, Play } from "../icons";
+import { Check, Link as LinkIcon } from "../icons";
 
 /**
  * An illustration of the product's one idea: change a detail, the voice is prepared again, and the link that was
- * already shared now plays the correction. It runs entirely in the browser, plays no audio and calls no API; the real
- * thing is one click away ("Try it with your own words").
+ * already shared now plays the correction. It runs entirely in the browser, plays no audio and calls no API (the recordings
+ * are in BeforeAfter); the real thing is one click away ("Create an announcement").
  *
  * phase 0  published at 3 PM
  *       1  edited: the voice is out of date
@@ -47,7 +47,7 @@ export function CorrectionDemo() {
 
   return (
     <div className="rounded-3xl border border-line bg-surface-2 p-3 sm:p-5" data-testid="correction-demo">
-      <div className="grid gap-3 lg:grid-cols-[1.15fr_1fr] lg:gap-5">
+      <div className="grid gap-3 sm:gap-4">
         {/* The publisher's side */}
         <section aria-labelledby="demo-publisher" className="rounded-2xl border border-line bg-surface p-4 sm:p-6">
           <div className="flex items-center justify-between gap-3">
@@ -106,19 +106,10 @@ export function CorrectionDemo() {
             Classes end early on Friday for a staff training day. Pickup is at{" "}
             <span className={phase === 4 ? "mark-lime font-medium" : "font-medium text-fg"}>{live}</span> at the main gate.
           </p>
-          <div className="mt-5 flex items-center gap-3 rounded-xl border border-line bg-ink-2 p-3" aria-hidden="true">
-            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-fg text-ink">
-              <Play className="size-3.5 translate-x-px" />
-            </span>
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-line">
-              <div className="h-full w-1/3 rounded-full bg-signal" />
-            </div>
-            <span className="text-[12px] text-faint tabular-nums">0:00 / 0:14</span>
-          </div>
         </section>
       </div>
       <p className="mt-3 px-1 text-[12.5px] leading-5 text-faint sm:mt-4">
-        An illustration: nothing here is spoken or sent. Try it with real speech and your own words.
+        An illustration of the steps: nothing here is spoken or sent. Create an announcement to try it with real speech and your own words.
       </p>
     </div>
   );
