@@ -150,7 +150,8 @@ Finally run the judge path on the deployed URL from a phone and a desktop: sign 
 ## 6. Operating it
 
 - **Logs.** The app writes one JSON object per line to stdout (`event`, `level`, timestamps). In Vercel: project → **Logs**; filter on `auth.`, `synthesis.` or `request.failed`. Credentials are redacted by field name and sign-in events reference an address only by a short hash.
-- **Cron.** `vercel.json` runs the cleanup daily at 03:17 UTC: expired previews, abandoned publish copies, expired sessions, rate-limit rows and spent sign-in codes.
+- **Cron.** `vercel.json` runs the cleanup daily at 03:17 UTC: expired previews, abandoned publish copies, expired sessions, rate-limit rows, spent sign-in codes and abandoned demo workspaces (a demo workspace and its public links are removed once its 30-day session has expired and it is at least 7 days old; at most 25 per run). The response reports counts only.
+- **Storage timeouts.** `STORAGE_TIMEOUT_MS` (default `10000`, range 500 to 30000) caps each storage request; during generation it is also clamped to the time left in the request. Raise it only if Supabase Storage is slow from your region and approvals time out.
 - **Withdrawing a notice for a user who has lost access to their email** (rare): in the Supabase SQL editor, `update notices set state = 'withdrawn', withdrawn_at = now() where public_token = '<token>';`. Application access to its audio stops immediately.
 - **Rolling back a bad deploy.** Vercel → Deployments → promote the previous deployment. Migrations in this repository only add columns and tables, so the previous build keeps working against the newer schema.
 - **Costs.** Nothing here enables a paid service. AssemblyAI usage is billed by that account; the app rate-limits synthesis per user and IP (`SYNTHESIS_LIMIT_PER_HOUR`).
