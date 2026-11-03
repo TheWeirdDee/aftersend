@@ -1,0 +1,115 @@
+{
+  "mode": "live",
+  "at": "2026-10-30T16:37:26.187Z",
+  "target": "https://aftersend-sigma.vercel.app",
+  "account": "76b4b91a309f",
+  "steps": [
+    {
+      "n": 1,
+      "name": "target is live-capable (real speech and real email), unless rehearsing",
+      "ok": true,
+      "detail": "speech=ok (assemblyai), email=ok (resend)",
+      "ms": 3783
+    },
+    {
+      "n": 2,
+      "name": "1. sign up with email (code delivered to a real mailbox)",
+      "ok": false,
+      "detail": "no code was provided in time",
+      "ms": 541917
+    },
+    {
+      "n": 3,
+      "name": "2-3. create a notice and start from the first configured voice",
+      "ok": false,
+      "detail": "create answered 401",
+      "ms": 2473
+    },
+    {
+      "n": 4,
+      "name": "4. generate audio (real synthesis in live mode)",
+      "ok": false,
+      "detail": "generate answered 401: {\"code\":\"unauthenticated\",\"message\":\"Sign in to your workspace first.\",\"retryable\":false,\"correlationId\":\"2b55cfb9-e6dc-4d28-96f8-adda1d5f0bfd\"}",
+      "ms": 1909
+    },
+    {
+      "n": 5,
+      "name": "5-6. approve and publish; obtain the permanent link",
+      "ok": false,
+      "detail": "approve answered 401",
+      "ms": 334
+    },
+    {
+      "n": 6,
+      "name": "7. open the link anonymously; audio is revalidated, not cached",
+      "ok": false,
+      "detail": "page answered 404",
+      "ms": 1232
+    },
+    {
+      "n": 7,
+      "name": "8-10. correct 3 PM to 4 PM, regenerate, republish; the same link serves the correction",
+      "ok": false,
+      "detail": "correction answered 401",
+      "ms": 295
+    },
+    {
+      "n": 8,
+      "name": "11a. superseded audio is refused by the application (even with its old ETag)",
+      "ok": false,
+      "detail": "Cannot read properties of undefined (reading 'startsWith')",
+      "ms": 4
+    },
+    {
+      "n": 9,
+      "name": "11b. the superseded storage object is not readable directly from storage",
+      "ok": false,
+      "detail": "Cannot read properties of undefined (reading 'find')",
+      "ms": 314
+    },
+    {
+      "n": 10,
+      "name": "12-13. withdraw; every public route stops serving the notice",
+      "ok": false,
+      "detail": "withdraw answered 401",
+      "ms": 291
+    },
+    {
+      "n": 11,
+      "name": "13b. the withdrawn storage object is not readable directly from storage",
+      "ok": false,
+      "detail": "Cannot read properties of undefined (reading 'find')",
+      "ms": 313
+    },
+    {
+      "n": 12,
+      "name": "14. lose the browser session",
+      "ok": true,
+      "detail": "",
+      "ms": 296
+    },
+    {
+      "n": 13,
+      "name": "15. recover the workspace with the verified email",
+      "ok": false,
+      "detail": "no code was provided in time",
+      "ms": 542268
+    },
+    {
+      "n": 14,
+      "name": "16. another account cannot read or change the first account's notice",
+      "ok": false,
+      "detail": "no code was provided in time",
+      "ms": 544540
+    },
+    {
+      "n": 15,
+      "name": "17. sign out everywhere ends the recovered session",
+      "ok": false,
+      "detail": "answered 401",
+      "ms": 1626
+    }
+  ],
+  "failed": 13,
+  "note": "The listening gate is a browser attestation; this run approved through the API and does not show that anyone listened. Pronunciation is judged only by docs/LISTENING_REVIEW.md."
+}
