@@ -33,6 +33,12 @@ const get = (path: string, init?: RequestInit) => fetch(path.startsWith("http") 
 async function app() {
   const health = await get("/api/health");
   check("liveness: /api/health is 200", health.status === 200, `status ${health.status}`);
+  // With --commit <sha>, the running deployment must have been built from that commit.
+  const wantedCommit = process.argv[process.argv.indexOf("--commit") + 1];
+  if (process.argv.includes("--commit")) {
+    const running = ((await health.clone().json().catch(() => ({}))) as { commit?: string }).commit;
+    check("the running deployment was built from the expected commit", !!running && !!wantedCommit && wantedCommit.startsWith(running), `running ${running ?? "unknown"}, expected ${wantedCommit?.slice(0, 7)}`);
+  }
 
   const ready = await get("/api/ready");
   const body = (await ready.json().catch(() => ({}))) as { ok?: boolean; checks?: Record<string, string> };
