@@ -15,7 +15,7 @@ export function WithdrawButton({ noticeId }: { noticeId: string }) {
         className="btn-danger btn-sm"
         disabled={busy}
         onClick={async () => {
-          if (!confirm("Withdraw this notice? The link will show “This notice has been withdrawn” and stop playing audio. This cannot be undone.")) return;
+          if (!confirm("Withdraw this announcement? The link will say it has been withdrawn and stop playing audio. This cannot be undone. Audio that someone already downloaded cannot be recalled.")) return;
           setBusy(true);
           try {
             await api(`/api/notices/${noticeId}/withdraw`, { method: "POST" });
@@ -27,7 +27,7 @@ export function WithdrawButton({ noticeId }: { noticeId: string }) {
           }
         }}
       >
-        Withdraw notice
+        Withdraw announcement
       </button>
       {error ? <p role="alert" className="mt-2 text-[13px] text-danger">{error}</p> : null}
     </div>
