@@ -3,20 +3,91 @@ import fs from "node:fs";
 import path from "node:path";
 import { expect, type Page } from "@playwright/test";
 
+/** Starts a guest session from the public start page; it opens the editor on the sample announcement. */
 export async function startDemo(page: Page) {
   await page.goto("/demo");
-  await page.getByRole("button", { name: "Start the demo" }).click();
+  await page.getByRole("button", { name: "Start writing" }).click();
   await expect(page).toHaveURL(/\/app\/notices\/ntc_[a-f0-9]+\/edit$/);
 }
 
-/** Generate → listen → confirm → approve, from the editor. */
+/**
+ * A guest session made through the API only, without opening the editor. The editor prepares speech by itself the moment it
+ * opens, so tests that drive the API step by step must not have an editor open on the same draft.
+ */
+export async function startGuestViaApi(page: Page) {
+  const origin = `http://localhost:${process.env.E2E_PORT ?? 3100}`;
+  const res = await page.request.post("/api/workspace", { headers: { Origin: origin, "Content-Type": "application/json" }, data: { kind: "guest" } });
+  expect(res.status()).toBe(201);
+  const noticeId = ((await res.json()) as { redirect: string }).redirect.match(/ntc_[a-f0-9]+/)![0];
+  return { noticeId, origin };
+}
+
+/**
+ * Records, in the page, every play(), pause() and load() call, every media event and every audio element added or removed from
+ * the document, so a listening gate that does not open can be explained from the failure report.
+ */
+export async function traceMedia(page: Page) {
+  await page.evaluate(() => {
+    const w = window as unknown as { __mediaTrace?: string[]; __mediaTraced?: boolean };
+    if (w.__mediaTraced) return;
+    w.__mediaTraced = true;
+    const trace: string[] = (w.__mediaTrace = []);
+    const t0 = performance.now();
+    const note = (what: string) => trace.push(`${Math.round(performance.now() - t0)}ms ${what}`);
+    const proto = HTMLMediaElement.prototype;
+    for (const name of ["play", "pause", "load"] as const) {
+      const original = proto[name] as (...a: unknown[]) => unknown;
+      (proto as unknown as Record<string, unknown>)[name] = function (this: HTMLMediaElement, ...a: unknown[]) {
+        note(`${name}() paused=${this.paused} ready=${this.readyState} t=${this.currentTime.toFixed(2)}`);
+        const result = original.apply(this, a);
+        if (result instanceof Promise) result.then(() => note(`${name}() resolved`), (e: Error) => note(`${name}() rejected ${e.name}`));
+        return result;
+      };
+    }
+    for (const type of ["loadstart", "loadedmetadata", "canplay", "playing", "pause", "waiting", "stalled", "suspend", "abort", "emptied", "error", "ended", "seeking"]) {
+      document.addEventListener(
+        type,
+        (e) => {
+          const el = e.target as HTMLMediaElement;
+          const err = type === "error" && el.error ? ` code=${el.error.code} message=${el.error.message} net=${el.networkState} ready=${el.readyState} t=${el.currentTime.toFixed(2)}` : "";
+          note(`event ${type}${err}`);
+        },
+        true,
+      );
+    }
+    new MutationObserver((records) => {
+      for (const r of records) {
+        r.removedNodes.forEach((n) => n instanceof Element && (n.tagName === "AUDIO" || n.querySelector("audio")) && note("audio element REMOVED"));
+        r.addedNodes.forEach((n) => n instanceof Element && (n.tagName === "AUDIO" || n.querySelector("audio")) && note("audio element ADDED"));
+      }
+    }).observe(document.documentElement, { childList: true, subtree: true });
+  });
+}
+
+/** Wait for the voice to be prepared by itself → listen → confirm → publish, from the editor. */
 export async function generateListenApprove(page: Page, approveName: RegExp) {
-  await page.getByRole("button", { name: /Generate preview/ }).first().click();
-  await expect(page.getByRole("status").filter({ hasText: "Ready to preview" })).toBeVisible({ timeout: 30_000 });
-  await page.getByRole("button", { name: "Play audio preview" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Ready to listen" })).toBeVisible({ timeout: 40_000 });
+  await traceMedia(page);
+  await page.getByRole("button", { name: "Play spoken preview" }).click();
   // The confirmation unlocks only once the preview has actually played through, not when play is pressed.
-  const confirm = page.getByLabel(/I listened to the preview/);
-  await expect(confirm).toBeEnabled({ timeout: 30_000 });
+  const confirm = page.getByLabel(/I listened to this preview/);
+  try {
+    await expect(confirm).toBeEnabled({ timeout: 30_000 });
+  } catch (err) {
+    // Say what the browser's media element was doing, so a stuck gate is diagnosed from the report rather than guessed at.
+    const media = await page
+      .locator("audio")
+      .first()
+      .evaluate((a: HTMLAudioElement) => {
+        const ranges = (r: TimeRanges) => Array.from({ length: r.length }, (_, i) => [r.start(i), r.end(i)]);
+        return { readyState: a.readyState, networkState: a.networkState, paused: a.paused, ended: a.ended, currentTime: a.currentTime, duration: a.duration, error: a.error && { code: a.error.code, message: a.error.message }, played: ranges(a.played), buffered: ranges(a.buffered), src: a.currentSrc.slice(-60) };
+      })
+      .catch((e) => String(e));
+    const trace = await page.evaluate(() => (window as unknown as { __mediaTrace?: string[] }).__mediaTrace ?? []).catch(() => []);
+    throw new Error(`The listening gate did not open. Media element: ${JSON.stringify(media)}
+Trace: ${trace.join(" | ")}
+${String(err)}`);
+  }
   await confirm.check();
   await page.getByRole("button", { name: approveName }).first().click();
   await expect(page).toHaveURL(/\/app\/notices\/ntc_[a-f0-9]+\?published=\d+$/);
