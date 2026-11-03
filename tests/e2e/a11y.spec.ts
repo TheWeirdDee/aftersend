@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
 import { generateListenApprove, publicUrl, scan, startDemo } from "./helpers";
 
-test("landing, demo and not-found pages have no detectable WCAG A/AA violations", async ({ page }) => {
+test("landing, sign-in and not-found pages have no detectable WCAG A/AA violations", async ({ page }) => {
   await page.goto("/");
   await scan(page, "landing");
-  await page.goto("/demo");
-  await scan(page, "demo");
+  await page.goto("/signin");
+  await scan(page, "sign in");
   await page.goto("/n/AAAAAAAAAAAAAAAAAAAAAA");
   await scan(page, "unknown notice");
 });
