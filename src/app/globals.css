@@ -1,37 +1,108 @@
 @import "tailwindcss";
 
+/*
+ * Colour is defined once as plain variables (--c-*) per theme, then exposed to Tailwind as --color-*.
+ * Light and dark are both first-class: "system" follows the device, and a visitor's explicit choice is
+ * stored on <html data-theme="light|dark"> before first paint (see the boot script in layout.tsx).
+ */
 @theme {
-  --color-ink: #0b0d0c;
-  --color-ink-2: #111512;
-  --color-surface: #171c18;
-  --color-surface-2: #1d231f;
-  --color-surface-3: #242b26;
-  --color-line: #29312b;
-  --color-line-strong: #3a443d;
-  --color-fg: #f4f5f1;
-  --color-muted: #a1aaa3;
-  --color-faint: #8b958d;
-  --color-signal: #d4f36b;
-  --color-signal-dim: #a9c450;
-  --color-signal-ink: #1a2007;
-  --color-removed: #e58a7e;
-  --color-warn: #e6ae52;
-  --color-danger: #e5675c;
-  --color-focus: #9cb8ff;
+  --color-ink: var(--c-ink);
+  --color-ink-2: var(--c-ink-2);
+  --color-surface: var(--c-surface);
+  --color-surface-2: var(--c-surface-2);
+  --color-surface-3: var(--c-surface-3);
+  --color-line: var(--c-line);
+  --color-line-strong: var(--c-line-strong);
+  --color-fg: var(--c-fg);
+  --color-muted: var(--c-muted);
+  --color-faint: var(--c-faint);
+  --color-signal: var(--c-signal);
+  --color-signal-dim: var(--c-signal-dim);
+  --color-signal-ink: var(--c-signal-ink);
+  --color-lime: #d4f36b;
+  --color-lime-ink: #182006;
+  --color-removed: var(--c-removed);
+  --color-warn: var(--c-warn);
+  --color-danger: var(--c-danger);
+  --color-focus: var(--c-focus);
 
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Inter Tight Variable", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
 
   --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 :root {
+  color-scheme: light;
+  --c-ink: #f6f5ee;
+  --c-ink-2: #efede3;
+  --c-surface: #ffffff;
+  --c-surface-2: #f2f0e7;
+  --c-surface-3: #e9e6da;
+  --c-line: #dfdcd0;
+  --c-line-strong: #c2beae;
+  --c-fg: #14170f;
+  --c-muted: #4e5247;
+  --c-faint: #666a5d;
+  --c-signal: #3b5600;
+  --c-signal-dim: #567510;
+  --c-signal-ink: #ffffff;
+  --c-removed: #a42f1d;
+  --c-warn: #855200;
+  --c-danger: #b0261b;
+  --c-focus: #1d4ed8;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --c-ink: #0c0e0b;
+    --c-ink-2: #121510;
+    --c-surface: #171b15;
+    --c-surface-2: #1d221b;
+    --c-surface-3: #242a21;
+    --c-line: #272d25;
+    --c-line-strong: #3a4436;
+    --c-fg: #f3f4ee;
+    --c-muted: #a6ada1;
+    --c-faint: #8e958a;
+    --c-signal: #d4f36b;
+    --c-signal-dim: #a9c450;
+    --c-signal-ink: #182006;
+    --c-removed: #e8978b;
+    --c-warn: #e6ae52;
+    --c-danger: #ee7a70;
+    --c-focus: #9cb8ff;
+  }
+}
+
+:root[data-theme="dark"] {
   color-scheme: dark;
+  --c-ink: #0c0e0b;
+  --c-ink-2: #121510;
+  --c-surface: #171b15;
+  --c-surface-2: #1d221b;
+  --c-surface-3: #242a21;
+  --c-line: #272d25;
+  --c-line-strong: #3a4436;
+  --c-fg: #f3f4ee;
+  --c-muted: #a6ada1;
+  --c-faint: #8e958a;
+  --c-signal: #d4f36b;
+  --c-signal-dim: #a9c450;
+  --c-signal-ink: #182006;
+  --c-removed: #e8978b;
+  --c-warn: #e6ae52;
+  --c-danger: #ee7a70;
+  --c-focus: #9cb8ff;
 }
 
 html {
   background: var(--color-ink);
   color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-feature-settings: "cv11", "ss03";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -50,30 +121,21 @@ body {
   overflow-x: clip;
 }
 
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+}
+
 ::selection {
-  background: var(--color-signal);
-  color: var(--color-signal-ink);
+  background: var(--color-lime);
+  color: var(--color-lime-ink);
 }
 
 :focus-visible {
   outline: 2px solid var(--color-focus);
   outline-offset: 3px;
   border-radius: 6px;
-}
-
-/* Motion: elements start hidden only once the motion script has confirmed it will animate them. */
-html.motion-ready [data-landing] [data-reveal],
-html.motion-ready [data-landing] [data-hero]:not([data-hero="line"]):not([data-hero="copy"]):not([data-hero="bar"]):not(header):not([data-hero="bar"] *) {
-  opacity: 0;
-}
-
-/* Headline lines stay opaque (they are the largest paint); they start clipped below their mask instead. */
-html.motion-ready [data-landing] [data-hero="line"] {
-  transform: translateY(105%);
-}
-
-html.motion-ready [data-landing] [data-hero="copy"] {
-  transform: translateY(14px);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -83,6 +145,66 @@ html.motion-ready [data-landing] [data-hero="copy"] {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* The lime marker: a highlighter stroke behind the words that matter. On the dark theme the stroke would sit under light
+   text, so there it becomes a solid lime block with dark text. */
+.mark-lime {
+  background-image: linear-gradient(var(--color-lime), var(--color-lime));
+  background-repeat: no-repeat;
+  background-position: 0 88%;
+  background-size: 100% 0.52em;
+  color: var(--color-fg);
+  padding: 0 0.12em;
+  margin: 0 -0.12em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .mark-lime {
+    background-size: 100% 100%;
+    background-position: 0 50%;
+    color: var(--color-lime-ink);
+    border-radius: 0.12em;
+  }
+}
+
+:root[data-theme="dark"] .mark-lime {
+  background-size: 100% 100%;
+  background-position: 0 50%;
+  color: var(--color-lime-ink);
+  border-radius: 0.12em;
+}
+
+/* Solid lime block with dark text, for the one phrase that should be unmistakable. */
+@utility mark-block {
+  background: var(--color-lime);
+  color: var(--color-lime-ink);
+  padding: 0.02em 0.22em 0.08em;
+  border-radius: 0.14em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+@keyframes sweep {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes bars {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
   }
 }
 
@@ -91,7 +213,11 @@ html.motion-ready [data-landing] [data-hero="copy"] {
 }
 
 @utility btn-primary {
-  @apply btn bg-fg text-ink hover:bg-white active:scale-[0.98] disabled:hover:bg-fg;
+  @apply btn bg-fg text-ink hover:opacity-85 active:scale-[0.98];
+}
+
+@utility btn-accent {
+  @apply btn bg-lime text-lime-ink hover:brightness-95 active:scale-[0.98];
 }
 
 @utility btn-secondary {
@@ -99,7 +225,7 @@ html.motion-ready [data-landing] [data-hero="copy"] {
 }
 
 @utility btn-ghost {
-  @apply btn px-3 text-muted hover:bg-surface hover:text-fg;
+  @apply btn px-3 text-muted hover:bg-surface-2 hover:text-fg;
 }
 
 @utility btn-danger {
@@ -123,11 +249,11 @@ html.motion-ready [data-landing] [data-hero="copy"] {
 }
 
 @utility input {
-  @apply w-full rounded-lg border border-line-strong bg-ink-2 px-3.5 py-2.5 text-[15px] text-fg placeholder:text-faint transition-colors outline-none hover:border-faint focus:border-focus focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus/40;
+  @apply w-full rounded-lg border border-line-strong bg-ink-2 px-3.5 py-2.5 text-[15px] text-fg placeholder:text-faint transition-colors outline-none hover:border-faint focus:border-focus focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus/40 disabled:opacity-60;
 }
 
 @utility eyebrow {
-  @apply font-mono text-[12px] font-medium tracking-[0.12em] text-muted uppercase;
+  @apply text-[12px] font-semibold tracking-[0.14em] text-muted uppercase;
 }
 
 @utility pill {
