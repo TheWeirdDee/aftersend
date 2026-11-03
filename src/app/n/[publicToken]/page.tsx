@@ -18,20 +18,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { publicToken } = await params;
   const m = await getPublicManifest(publicToken);
   return {
-    title: m ? m.noticeTitle : "Notice not found",
-    description: m?.state === "published" ? "Listen to the current version of this notice." : undefined,
+    title: m ? m.noticeTitle : "Announcement not found",
+    description: m?.state === "published" ? "Listen to the latest version of this announcement." : undefined,
     robots: { index: false, follow: false },
   };
 }
 
-function Shell({ children, isDemo }: { children: React.ReactNode; isDemo?: boolean }) {
+function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col">
-      {isDemo ? (
-        <div className="border-b border-warn/30 bg-warn/[0.08] px-4 py-2 text-center text-[13px] text-warn">
-          Demo data: a fictional sample notice made for the AfterSend demo.
-        </div>
-      ) : null}
       <main id="main" className="mx-auto w-full max-w-[680px] flex-1 px-4 py-10 sm:px-6 sm:py-16">
         {children}
       </main>
@@ -42,7 +37,7 @@ function Shell({ children, isDemo }: { children: React.ReactNode; isDemo?: boole
             AfterSend
           </Link>
         </p>
-        <p className="mt-1">AfterSend hosts this notice for its publisher. It does not verify who issued it or whether it is accurate.</p>
+        <p className="mt-1">AfterSend hosts this announcement for its publisher. It does not verify who published it or whether it is accurate.</p>
       </footer>
     </div>
   );
@@ -55,26 +50,31 @@ export default async function ListenerPage({ params }: Props) {
 
   if (m.state === "withdrawn") {
     return (
-      <Shell isDemo={m.isDemo}>
-        <p className="eyebrow">Notice withdrawn</p>
+      <Shell>
+        <p className="eyebrow">Withdrawn</p>
         <h1 className="mt-3 text-[clamp(1.75rem,6vw,2.5rem)] leading-[1.1] font-semibold tracking-[-0.04em]">{m.noticeTitle}</h1>
         <p className="mt-5 rounded-xl border border-danger/40 bg-danger/[0.07] p-4 text-[16px] leading-7">
-          This notice has been withdrawn by its publisher. It is no longer current, and its audio is no longer available.
+          The publisher has withdrawn this announcement. It is no longer current and its audio is no longer available. Copies of the audio that were downloaded earlier cannot be recalled.
         </p>
-        <p className="mt-3 font-mono text-[13px] text-muted">Withdrawn {formatStamp(m.withdrawnAt)}</p>
+        <p className="mt-3 text-[13.5px] text-muted">Withdrawn {formatStamp(m.withdrawnAt)}</p>
       </Shell>
     );
   }
 
   const revised = m.revisionNumber > 1;
   return (
-    <Shell isDemo={m.isDemo}>
+    <Shell>
       <article aria-labelledby="notice-title" data-revision={m.revisionNumber} data-revision-id={m.revisionId}>
-        <p className="eyebrow">Current notice</p>
+        <p className="flex items-center gap-2">
+          <span className="pill border-signal/40 text-signal">
+            <span className="size-1.5 rounded-full bg-signal" aria-hidden /> Current announcement
+          </span>
+          {revised ? <span className="pill border-line-strong text-muted">Corrected</span> : null}
+        </p>
         <h1 id="notice-title" className="mt-3 text-[clamp(1.85rem,6.5vw,2.75rem)] leading-[1.08] font-semibold tracking-[-0.04em] text-balance">
           {m.noticeTitle}
         </h1>
-        <p className="mt-3 font-mono text-[13px] text-muted" data-testid="updated-at">
+        <p className="mt-3 text-[14px] text-muted" data-testid="updated-at">
           <time dateTime={m.publishedAt}>
             {revised ? "Updated" : "Published"} {formatStamp(m.publishedAt, m.timezone)}
           </time>
@@ -83,14 +83,14 @@ export default async function ListenerPage({ params }: Props) {
         {revised ? (
           <div className="mt-6 rounded-xl border border-signal/35 bg-signal/[0.07] p-4" data-testid="revised-banner">
             <p className="text-[15.5px] leading-6 font-medium text-fg">
-              This notice was revised. This is version {m.revisionNumber}.
+              This announcement was corrected. You are seeing the latest version.
             </p>
             {m.updatePreface ? <p className="mt-1.5 text-[15px] leading-6 text-fg">{m.updatePreface}</p> : null}
             {m.updateSummary?.length ? (
               <ul className="mt-2 space-y-1 text-[14.5px] text-muted">
                 {m.updateSummary.map((s, i) => (
                   <li key={i}>
-                    Current {s.changedField}: <span className="font-medium text-fg">{s.currentValue}</span>
+                    The {s.changedField} is now <span className="font-medium text-fg">{s.currentValue}</span>
                   </li>
                 ))}
               </ul>
@@ -100,7 +100,7 @@ export default async function ListenerPage({ params }: Props) {
         ) : null}
 
         <div className="mt-7">
-          <AudioPlayer key={m.audioUrl} src={m.audioUrl} label="current notice" durationHintMs={m.audioDurationMs} />
+          <AudioPlayer key={m.audioUrl} src={m.audioUrl} label="announcement" durationHintMs={m.audioDurationMs} />
           {m.audioIsTestTone ? (
             <p className="mt-2">
               <TestAudioBadge />
@@ -110,7 +110,7 @@ export default async function ListenerPage({ params }: Props) {
 
         <section aria-labelledby="text-heading" className="mt-9">
           <h2 id="text-heading" className="eyebrow">
-            Written notice
+            Full announcement
           </h2>
           <div className="mt-3 text-[17px] leading-[1.75] whitespace-pre-wrap text-fg" data-testid="notice-text">
             {m.displayText}
@@ -127,10 +127,10 @@ export default async function ListenerPage({ params }: Props) {
             </p>
           ) : null}
           <p>
-            <a href={m.audioUrl} download={`notice-v${m.revisionNumber}.${m.audioMime === "audio/mpeg" ? "mp3" : "wav"}`} className="inline-flex items-center gap-1.5 underline-offset-4 hover:text-fg hover:underline">
-              <Download className="size-4" /> Download this version
+            <a href={m.audioUrl} download={`announcement-${m.revisionNumber}.${m.audioMime === "audio/mpeg" ? "mp3" : "wav"}`} className="inline-flex items-center gap-1.5 underline-offset-4 hover:text-fg hover:underline">
+              <Download className="size-4" /> Download this audio
             </a>
-            <span className="block text-[13px] text-faint">A downloaded file is a static copy and will not update. This link always shows the current version.</span>
+            <span className="block text-[13px] text-faint">A downloaded file is a copy and will not update. This link always plays the latest version.</span>
           </p>
         </div>
       </article>
