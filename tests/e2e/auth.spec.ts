@@ -1,5 +1,5 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
-import { generateListenApprove, mailCount, newEmail, publicUrl, scan, signInWithEmail, waitForCode } from "./helpers";
+import { generateListenApprove, mailCount, newEmail, publicUrl, scan, signInWithEmail, startDemo, waitForCode } from "./helpers";
 
 /**
  * Passwordless email sign-in, recovery and account boundaries, in a real browser against the production build.
@@ -23,7 +23,7 @@ async function publishNotice(page: Page, title = "Pickup notice") {
     })
   ).json();
   await page.goto(`/app/notices/${created.noticeId}/edit`);
-  await generateListenApprove(page, /Approve and publish/);
+  await generateListenApprove(page, /Publish announcement/);
   return { noticeId: created.noticeId as string, url: await publicUrl(page) };
 }
 
@@ -47,11 +47,11 @@ test("release journey: email sign-up, publish, correct, withdraw, lose the sessi
   expect((await anon.page.request.get(audio1)).status()).toBe(200);
 
   // 8-10. Correct 3 PM to 4 PM through the editor; the same link now serves the correction.
-  await page.getByRole("link", { name: /Correct this notice/ }).click();
-  const text = page.getByLabel("Notice text");
+  await page.getByRole("link", { name: /Update this announcement/ }).click();
+  const text = page.getByLabel("Announcement", { exact: true });
   await text.fill((await text.inputValue()).replace("3:00 PM", "4:00 PM"));
-  await expect(page.getByText("Draft saved")).toBeVisible();
-  await generateListenApprove(page, /Approve update/);
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await generateListenApprove(page, /Update announcement/);
   expect(await publicUrl(page)).toBe(url);
   await anon.page.reload();
   await expect(anon.page.getByTestId("notice-text")).toContainText("Pickup is at 4:00 PM");
@@ -64,10 +64,10 @@ test("release journey: email sign-up, publish, correct, withdraw, lose the sessi
 
   // 12-13. Withdraw; public access is revoked.
   page.once("dialog", (d) => d.accept());
-  await page.getByRole("button", { name: "Withdraw notice" }).click();
+  await page.getByRole("button", { name: "Withdraw announcement" }).click();
   await expect(page.getByText(/^Withdrawn /)).toBeVisible();
   await anon.page.reload();
-  await expect(anon.page.getByText("This notice has been withdrawn by its publisher.")).toBeVisible();
+  await expect(anon.page.getByText("The publisher has withdrawn this announcement.")).toBeVisible();
   expect((await anon.page.request.get(audio2)).status()).toBe(404);
 
   // 14. Lose the browser session: the cookie is gone and the workspace is unreachable from this browser.
@@ -92,7 +92,7 @@ test("release journey: email sign-up, publish, correct, withdraw, lose the sessi
   expect((await other.page.request.post(`/api/notices/${noticeId}/revisions`, { headers, data: { text: "hijack" } })).status()).toBe(404);
   expect((await other.page.request.post(`/api/notices/${noticeId}/withdraw`, { headers })).status()).toBe(404);
   await other.page.goto(`/app/notices/${noticeId}/edit`);
-  await expect(other.page.getByRole("heading", { name: "Page not found." })).toBeVisible();
+  await expect(other.page.getByRole("heading", { name: "This page does not exist." })).toBeVisible();
   expect((await anon.page.request.get(`/api/notices/${noticeId}`)).status()).toBe(401);
   expect((await other.page.request.get("/api/notices")).status()).toBe(200);
   expect(((await (await other.page.request.get("/api/notices")).json()) as { notices: unknown[] }).notices).toHaveLength(0);
@@ -100,16 +100,15 @@ test("release journey: email sign-up, publish, correct, withdraw, lose the sessi
   for (const c of [anon, device, other]) await c.context.close();
 });
 
-test("an existing browser workspace can be connected to an email and recovered later", async ({ page, browser }) => {
+test("a guest can save their account to an email and recover it later", async ({ page, browser }) => {
+  await startDemo(page); // a guest, with the sample announcement as an unpublished draft
   await page.goto("/app");
-  await page.getByRole("button", { name: "Start a workspace without email" }).click();
-  await expect(page).toHaveURL(/\/app$/);
-  await expect(page.getByRole("link", { name: "Save to email" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Save your account", exact: true })).toBeVisible();
   const { noticeId } = await publishNotice(page, "Keep me");
 
   await page.goto("/app/account");
-  await expect(page.getByRole("heading", { name: "Save this workspace to your email" })).toBeVisible();
-  await expect(page.getByText(/already has a workspace with 1 notice/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Save your account with your email" })).toBeVisible();
+  await expect(page.getByText(/with 2 announcements in this browser/)).toBeVisible(); // the sample draft and the published one
   const email = newEmail();
   const before = mailCount(email);
   await page.getByLabel("Email address").fill(email);
@@ -119,7 +118,7 @@ test("an existing browser workspace can be connected to an email and recovered l
   await expect(page).toHaveURL(/\/app$/);
   await expect(page.getByText(email).first()).toBeVisible();
   await expect(page.getByRole("link", { name: "Keep me" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Save to email" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Save your account", exact: true })).toHaveCount(0);
 
   // The cookie is lost; the email brings the same notice back, from another browser.
   await page.context().clearCookies();
@@ -130,18 +129,17 @@ test("an existing browser workspace can be connected to an email and recovered l
   await device.context.close();
 });
 
-test("signing in on a browser that holds a different workspace merges it into the existing account", async ({ page, browser }) => {
+test("signing in on a browser that holds a guest session merges it into the existing account", async ({ page, browser }) => {
   const email = newEmail();
   const first = await newBrowserContext(browser);
   await signInWithEmail(first.page, email);
   await publishNotice(first.page, "From the account");
 
-  await page.goto("/app");
-  await page.getByRole("button", { name: "Start a workspace without email" }).click();
+  await startDemo(page);
   await publishNotice(page, "From this browser");
 
   await page.goto("/signin");
-  await expect(page.getByText(/already has a workspace with 1 notice/)).toBeVisible(); // told before anything is sent
+  await expect(page.getByText(/with 2 announcements in this browser/)).toBeVisible(); // told before anything is sent
   const before = mailCount(email);
   await page.getByLabel("Email address").fill(email);
   await page.getByRole("button", { name: "Send code" }).click();
@@ -225,13 +223,12 @@ test("signing out here leaves other devices signed in; signing out everywhere en
   await second.context.close();
 });
 
-test("demo workspaces cannot be connected to an email", async ({ page }) => {
-  await page.goto("/demo");
-  await page.getByRole("button", { name: "Start the demo" }).click();
-  await expect(page).toHaveURL(/\/edit$/);
+test("a guest is offered the email form to save their account, and a signed-in account is not", async ({ page }) => {
+  await startDemo(page);
+  await expect(page.getByText("You're using AfterSend as a guest.")).toBeVisible();
   await page.goto("/app/account");
-  await expect(page.getByText("can't be connected to an email")).toBeVisible();
-  await expect(page.getByLabel("Email address")).toHaveCount(0);
+  await expect(page.getByText("You are using AfterSend as a guest.")).toBeVisible();
+  await expect(page.getByLabel("Email address")).toBeVisible();
 });
 
 test("the sign-in and account pages have no detectable accessibility violations", async ({ page }) => {
@@ -251,16 +248,16 @@ test("the sign-in and account pages have no detectable accessibility violations"
   await page.getByLabel("6-digit code").fill(await waitForCode(email, before));
   await page.getByRole("button", { name: "Verify and continue" }).click();
   await expect(page).toHaveURL(/\/app$/);
-  await scan(page, "workspace");
+  await scan(page, "announcements");
   await page.goto("/app/account");
   await scan(page, "account (signed in)");
 
   await page.context().clearCookies();
   await page.goto("/app");
-  await scan(page, "workspace gate");
-  await page.getByRole("button", { name: "Start a workspace without email" }).click();
+  await scan(page, "signed-out announcements page");
+  await startDemo(page);
   await page.goto("/app/account");
-  await scan(page, "account (not connected)");
+  await scan(page, "account (guest)");
 });
 
 for (const width of [320, 390, 768]) {
