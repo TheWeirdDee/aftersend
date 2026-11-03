@@ -52,6 +52,9 @@
   --c-warn: #855200;
   --c-danger: #b0261b;
   --c-focus: #1d4ed8;
+  --mark-tile: #14170f;
+  --mark-a: #f6f5ee;
+  --mark-b: #d4f36b;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -74,6 +77,9 @@
     --c-warn: #e6ae52;
     --c-danger: #ee7a70;
     --c-focus: #9cb8ff;
+    --mark-tile: #d4f36b;
+    --mark-a: #0c0e0b;
+    --mark-b: #0c0e0b;
   }
 }
 
@@ -96,6 +102,9 @@
   --c-warn: #e6ae52;
   --c-danger: #ee7a70;
   --c-focus: #9cb8ff;
+  --mark-tile: #d4f36b;
+  --mark-a: #0c0e0b;
+  --mark-b: #0c0e0b;
 }
 
 html {
@@ -149,8 +158,7 @@ h3 {
   }
 }
 
-/* The lime marker: a highlighter stroke behind the words that matter. On the dark theme the stroke would sit under light
-   text, so there it becomes a solid lime block with dark text. */
+/* The lime marker: a highlighter stroke behind the words that matter. On the dark theme there is no stroke: the words are lime. */
 .mark-lime {
   background-image: linear-gradient(var(--color-lime), var(--color-lime));
   background-repeat: no-repeat;
@@ -165,28 +173,14 @@ h3 {
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .mark-lime {
-    background-size: 100% 100%;
-    background-position: 0 50%;
-    color: var(--color-lime-ink);
-    border-radius: 0.12em;
+    background-image: none;
+    color: var(--color-lime);
   }
 }
 
 :root[data-theme="dark"] .mark-lime {
-  background-size: 100% 100%;
-  background-position: 0 50%;
-  color: var(--color-lime-ink);
-  border-radius: 0.12em;
-}
-
-/* Solid lime block with dark text, for the one phrase that should be unmistakable. */
-@utility mark-block {
-  background: var(--color-lime);
-  color: var(--color-lime-ink);
-  padding: 0.02em 0.22em 0.08em;
-  border-radius: 0.14em;
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
+  background-image: none;
+  color: var(--color-lime);
 }
 
 @keyframes sweep {
