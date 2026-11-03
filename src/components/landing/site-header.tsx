@@ -5,12 +5,13 @@ import { useEffect, useState } from "react";
 import { Wordmark } from "../logo";
 import { ThemeToggle } from "../theme-toggle";
 import { Close, Menu } from "../icons";
+import { CreateAnnouncementButton } from "../app/create-button";
 
 const NAV = [
   { href: "/#how", label: "How it works" },
   { href: "/#correct", label: "Corrections" },
   { href: "/#trust", label: "Trust" },
-  { href: "/#faq", label: "Questions" },
+  { href: "/#faq", label: "FAQ" },
 ];
 
 export function SiteHeader() {
@@ -38,7 +39,7 @@ export function SiteHeader() {
       }`}
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
-        <Link href="/" aria-label="AfterSend home" className="shrink-0 rounded-lg">
+        <Link href="/" aria-label="AfterSend home" className="shrink-0 rounded-lg" onClick={() => setOpen(false)}>
           <Wordmark />
         </Link>
         <nav aria-label="Primary" className="hidden md:block">
@@ -57,9 +58,9 @@ export function SiteHeader() {
           <Link href="/signin" className="btn-ghost btn-sm hidden lg:inline-flex">
             Sign in
           </Link>
-          <Link href="/demo" className="btn-primary btn-sm hidden sm:inline-flex">
-            Create an announcement
-          </Link>
+          <span className="hidden sm:inline-flex">
+            <CreateAnnouncementButton className="btn-primary btn-sm" />
+          </span>
           <button
             type="button"
             className="btn-ghost btn-sm size-10 px-0 md:hidden"
@@ -86,10 +87,8 @@ export function SiteHeader() {
               Sign in
             </Link>
           </li>
-          <li className="pt-2 pb-1">
-            <Link href="/demo" onClick={() => setOpen(false)} className="btn-primary w-full">
-              Create an announcement
-            </Link>
+          <li className="flex pt-2 pb-1 [&>span]:w-full">
+            <CreateAnnouncementButton className="btn-primary w-full" />
           </li>
         </ul>
       </nav>
