@@ -7,6 +7,9 @@ import { Pause, Play } from "./icons";
 const RATES = [0.75, 1, 1.25, 1.5];
 /** A request for the audio can be cut off (a dropped connection, a server restarting). The player asks again this many times before giving up. */
 const MAX_AUTO_RELOADS = 3;
+/** If playback has not started this long after Play, the request is assumed stuck: the audio is requested again and playback resumes. */
+const START_WATCHDOG_MS = 4000;
+const MAX_STALL_RECOVERIES = 3;
 /** Share of the audio that must actually have played before it counts as listened to. */
 export const LISTENED_COVERAGE = 0.9;
 
@@ -45,10 +48,35 @@ export function AudioPlayer({
   const reported = useRef(false);
   const reloads = useRef(0);
   const reloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const watchdog = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stalls = useRef(0);
 
-  useEffect(() => () => {
-    if (reloadTimer.current) clearTimeout(reloadTimer.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (reloadTimer.current) clearTimeout(reloadTimer.current);
+      if (watchdog.current) clearTimeout(watchdog.current);
+    },
+    [],
+  );
+
+  /** Arms the stuck-start check; cleared as soon as the browser reports that audio is really playing. */
+  const armWatchdog = () => {
+    if (watchdog.current) clearTimeout(watchdog.current);
+    watchdog.current = setTimeout(() => {
+      const a = ref.current;
+      if (!a || (!a.paused && a.readyState >= 3)) return;
+      if (stalls.current >= MAX_STALL_RECOVERIES) {
+        setState("error");
+        return;
+      }
+      stalls.current += 1;
+      const resumeAt = a.currentTime;
+      a.load();
+      a.currentTime = resumeAt;
+      a.play().catch(() => {});
+      armWatchdog();
+    }, START_WATCHDOG_MS);
+  };
 
   /** Requests the file again. The listened-to record is kept: only ranges that were really played ever count. */
   const reload = () => {
@@ -89,6 +117,7 @@ export function AudioPlayer({
     if (a.paused) {
       try {
         setState("loading");
+        armWatchdog();
         await a.play();
         setState("idle");
       } catch (e) {
@@ -96,7 +125,11 @@ export function AudioPlayer({
         if (e instanceof DOMException && e.name === "AbortError") setState("idle");
         else setState("error");
       }
-    } else a.pause();
+    } else {
+      // A person pausing is not a stuck start.
+      if (watchdog.current) clearTimeout(watchdog.current);
+      a.pause();
+    }
   };
 
   const pct = duration ? Math.min(100, (time / duration) * 100) : 0;
@@ -121,6 +154,8 @@ export function AudioPlayer({
         onWaiting={() => setState("loading")}
         onPlaying={() => {
           reloads.current = 0;
+          stalls.current = 0;
+          if (watchdog.current) clearTimeout(watchdog.current);
           setState("idle");
         }}
         onError={onMediaError}
@@ -129,7 +164,7 @@ export function AudioPlayer({
         <button
           type="button"
           onClick={toggle}
-          className="grid size-12 shrink-0 place-items-center rounded-full bg-fg text-ink transition-transform hover:bg-white active:scale-95"
+          className="grid size-12 shrink-0 place-items-center rounded-full bg-fg text-ink transition-transform hover:opacity-85 active:scale-95"
           aria-label={`${playing ? "Pause" : "Play"} ${label}`}
         >
           {playing ? <Pause className="size-4" /> : <Play className="size-4 translate-x-px" />}
