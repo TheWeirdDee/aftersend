@@ -44,6 +44,7 @@ export async function cleanupStagingAudio(now = new Date(), hooks: { afterSelect
   await hooks.afterSelect?.();
 
   let deleted = 0;
+  let failed = 0;
   for (const { asset, revisionStatus, revisionAudio } of stale) {
     // An expired preview can no longer be approved; the publisher regenerates it. Detach it first, and only
     // while this exact asset is still the revision's preview. If the publisher replaced it or approved it since
@@ -66,11 +67,19 @@ export async function cleanupStagingAudio(now = new Date(), hooks: { afterSelect
           ),
         );
     }
+    // Bytes first, then the mark. The mark is what keeps a row out of the next run, so it is written only once the object
+    // is really gone: if storage fails now, the row stays eligible and the next run tries again (deleting a missing object
+    // is not an error).
+    try {
+      await deleteObjectIfUnreferenced(asset.id, asset.objectKey);
+    } catch {
+      failed++;
+      continue;
+    }
     await db.update(audioAssets).set({ deletedAt: now, contentReady: false }).where(eq(audioAssets.id, asset.id));
-    await deleteObjectIfUnreferenced(asset.id, asset.objectKey);
     deleted++;
   }
-  return { deleted };
+  return { deleted, failed };
 }
 
 /**
@@ -86,12 +95,20 @@ export async function cleanupAbandonedPublished(now = new Date()) {
     .from(audioAssets)
     .where(and(eq(audioAssets.stage, "published"), eq(audioAssets.contentReady, false), isNull(audioAssets.deletedAt), lt(audioAssets.createdAt, cutoff)));
   let deleted = 0;
+  let failed = 0;
   for (const asset of pending) {
+    // Same order as staging cleanup: the object goes first, and the row is marked only once it is gone, so a storage error
+    // leaves it eligible for the next run.
+    try {
+      await deleteObjectIfUnreferenced(asset.id, asset.objectKey);
+    } catch {
+      failed++;
+      continue;
+    }
     await db.update(audioAssets).set({ deletedAt: now }).where(eq(audioAssets.id, asset.id));
-    await deleteObjectIfUnreferenced(asset.id, asset.objectKey);
     deleted++;
   }
-  return { deleted };
+  return { deleted, failed };
 }
 
 /** Drops rows that only ever matter for a short window: expired sessions and old rate-limit counters. */
