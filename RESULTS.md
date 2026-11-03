@@ -4,7 +4,7 @@ This file holds measurements only. Targets and plans live in `docs/`. Every numb
 
 ## Eighth pass, 3 November 2026: recovery and redesign (live on production)
 
-Commit `142cd42` on `main`, deployed to https://aftersend-sigma.vercel.app. Evidence classes are kept apart below.
+Deployed code: commit `6eacac8` on `main` (`/api/health` reports it; `verify:deploy --commit 6eacac8` passed 24 of 24, and `CI / verify` succeeded on that commit). The live guest journey and the footage ran on `142cd42`; what changed after it is a button label, the health response, documentation and evidence. Evidence classes are kept apart below.
 
 **Live (the deployed site, real AssemblyAI speech).**
 - `npm run verify:deploy -- <url> --storage`: 23 of 23 checks passed after the deploy. Migration `0003` is applied (4 of 4 migrations, `notice_revisions.source_url` present; read-only query).
