@@ -17,7 +17,13 @@ export const metadata: Metadata = {
     type: "website",
   },
   twitter: { card: "summary_large_image", images: ["/og.png"] },
-  icons: { icon: "/icon.svg", apple: "/apple-icon.png" },
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon-32.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: "/apple-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
