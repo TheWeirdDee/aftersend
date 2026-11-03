@@ -20,6 +20,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline/promises";
+import { blockedBy, stepKey } from "./journey-needs";
 
 const args = process.argv.slice(2);
 const base = args.find((a) => /^https?:\/\//.test(a))?.replace(/\/$/, "");
@@ -47,14 +48,24 @@ if (rehearsal && !outbox) {
   process.exit(2);
 }
 
-type Step = { n: number; name: string; ok: boolean; detail: string; ms: number };
+type Step = { n: number; name: string; ok: boolean; skipped?: boolean; detail: string; ms: number };
 const steps: Step[] = [];
 const ref = (a: string) => createHash("sha256").update(a.toLowerCase()).digest("hex").slice(0, 12);
 let current = 0;
 
+const passedKeys = new Set<string>();
+
 async function step(name: string, fn: () => Promise<string | void>) {
   const started = Date.now();
   current++;
+  const key = stepKey(name);
+  const missing = blockedBy(key, passedKeys);
+  if (missing.length > 0) {
+    const detail = `skipped: step${missing.length > 1 ? "s" : ""} ${missing.join(", ")} did not pass`;
+    steps.push({ n: current, name, ok: false, skipped: true, detail, ms: 0 });
+    console.log(`SKIP  ${name}  (${detail})`);
+    return false;
+  }
   let ok = true;
   let detail = "";
   try {
@@ -64,6 +75,7 @@ async function step(name: string, fn: () => Promise<string | void>) {
     detail = err instanceof Error ? err.message : String(err);
   }
   steps.push({ n: current, name, ok, detail, ms: Date.now() - started });
+  if (ok && key) passedKeys.add(key);
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? `  (${detail})` : ""}`);
   return ok;
 }
@@ -363,7 +375,8 @@ async function main() {
 main()
   .catch((err) => console.error("Journey aborted:", err instanceof Error ? err.message : err))
   .finally(() => {
-    const failed = steps.filter((s) => !s.ok).length;
+    const failed = steps.filter((s) => !s.ok && !s.skipped).length;
+    const skipped = steps.filter((s) => s.skipped).length;
     // A run that stopped at the capability check did nothing worth keeping as evidence.
     if (steps.length <= 1 && failed > 0) {
       console.log("No report written: the run stopped before touching the target.");
@@ -377,11 +390,14 @@ main()
       account: ref(email!),
       steps,
       failed,
+      skipped,
+      crossAccountTested: Boolean(email2),
       note: "The listening gate is a browser attestation; this run approved through the API and does not show that anyone listened. Pronunciation is judged only by docs/LISTENING_REVIEW.md.",
     };
     fs.mkdirSync("evidence", { recursive: true });
     const file = `evidence/${rehearsal ? "rehearsal" : "live"}-journey-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
     fs.writeFileSync(file, JSON.stringify(report, null, 2));
-    console.log(`\n${steps.length - failed}/${steps.length} steps passed. Report: ${file}`);
-    process.exitCode = failed === 0 && steps.length > 0 ? 0 : 1;
+    const passed = steps.length - failed - skipped;
+    console.log(`\n${passed}/${steps.length} steps passed, ${failed} failed, ${skipped} skipped (not run because a step they depend on did not pass). Report: ${file}`);
+    process.exitCode = failed === 0 && skipped === 0 && steps.length > 0 ? 0 : 1;
   });
