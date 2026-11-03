@@ -5,7 +5,7 @@ import { getPublicManifest } from "@/lib/notices/public-manifest";
 import { formatStamp } from "@/lib/format";
 import { AudioPlayer } from "@/components/audio-player";
 import { UpdateWatcher } from "@/components/listener/update-watcher";
-import { LogoMark } from "@/components/logo";
+import { Wordmark } from "@/components/logo";
 import { Download } from "@/components/icons";
 import { TestAudioBadge } from "@/components/app/status-pill";
 
@@ -31,10 +31,10 @@ function Shell({ children }: { children: React.ReactNode }) {
         {children}
       </main>
       <footer className="border-t border-line px-4 py-6 text-center text-[12.5px] leading-5 text-faint">
-        <p className="inline-flex items-center gap-1.5">
-          <LogoMark className="size-3.5" /> Hosted with{" "}
-          <Link href="/" className="underline underline-offset-4 hover:text-fg">
-            AfterSend
+        <p className="inline-flex items-center gap-2">
+          Hosted with{" "}
+          <Link href="/" aria-label="AfterSend home" className="rounded-md">
+            <Wordmark size="sm" />
           </Link>
         </p>
         <p className="mt-1">AfterSend hosts this announcement for its publisher. It does not verify who published it or whether it is accurate.</p>
