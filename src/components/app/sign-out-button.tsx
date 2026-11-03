@@ -30,9 +30,9 @@ export function SignOutButton({ hasEmail }: { hasEmail: boolean }) {
       {hasEmail ? (
         "Sign out"
       ) : (
-        <>
-          Leave<span className="hidden sm:inline">&nbsp;guest session</span>
-        </>
+        <span>
+          Leave<span className="hidden sm:inline"> guest session</span>
+        </span>
       )}
     </button>
   );
