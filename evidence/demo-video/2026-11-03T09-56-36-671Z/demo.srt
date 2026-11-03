@@ -1,0 +1,59 @@
+1
+00:00:06,765 --> 00:00:10,265
+An important school announcement has been shared. Then the pickup time changes.
+
+2
+00:00:10,526 --> 00:00:15,026
+An illustration: change the time, the voice is prepared again, the link stays the same.
+
+3
+00:00:16,153 --> 00:00:18,653
+No account is needed to try it.
+
+4
+00:00:22,729 --> 00:00:26,729
+A sample announcement. Replace every word if you like. The voice is prepared automatically by AssemblyAI.
+
+5
+00:00:30,231 --> 00:00:32,031
+Real speech is ready. I listen to the whole preview before anything is public.
+
+6
+00:00:47,076 --> 00:00:48,876
+Nothing is public until I publish it.
+
+7
+00:00:55,087 --> 00:00:58,087
+Published. This link is what parents receive.
+
+8
+00:00:59,816 --> 00:01:03,316
+The listener page: no account, no autoplay, the full text beside the audio.
+
+9
+00:01:10,401 --> 00:01:12,901
+Now the pickup time changes: 3 PM becomes 4 PM.
+
+10
+00:01:13,038 --> 00:01:17,538
+The old voice is marked out of date. The new one is prepared when I stop typing.
+
+11
+00:01:23,037 --> 00:01:24,837
+The corrected speech is ready. I listen to it before approving.
+
+12
+00:01:38,801 --> 00:01:41,301
+The old announcement stays live until I approve this one.
+
+13
+00:01:47,819 --> 00:01:50,819
+Updated. The link has not changed.
+
+14
+00:01:52,659 --> 00:01:57,159
+The same link now says 4:00 PM, marked as corrected, with the new voice.
+
+15
+00:02:02,274 --> 00:02:06,274
+The words changed. The voice changed. The link stayed the same.
