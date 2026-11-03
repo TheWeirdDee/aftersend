@@ -61,8 +61,8 @@ export function EmailSignIn({ linkNotices }: { linkNotices: number | null }) {
     <div className="space-y-5">
       {linkNotices !== null ? (
         <p className="rounded-xl border border-line bg-surface p-4 text-[14.5px] leading-6 text-muted">
-          This browser already has a workspace{linkNotices ? ` with ${linkNotices} notice${linkNotices === 1 ? "" : "s"}` : ""}. Verifying your email
-          connects it to that address. If the address already has an account, this workspace&apos;s notices are moved into it.
+          You are using AfterSend{linkNotices ? ` with ${linkNotices} announcement${linkNotices === 1 ? "" : "s"}` : ""} in this browser. Verifying your email
+          saves them to that address. If the address already has an account, they are moved into it.
         </p>
       ) : null}
 
