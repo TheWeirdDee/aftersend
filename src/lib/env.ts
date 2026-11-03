@@ -51,7 +51,10 @@ const schema = z.object({
   // that uses it, so this keeps AfterSend from using it all up. Leave room for the other applications.
   AUTH_EMAILS_PER_DAY: z.coerce.number().int().positive().default(60),
   AUTH_VERIFY_PER_IP_PER_HOUR: z.coerce.number().int().positive().default(30),
-  SYNTHESIS_LIMIT_PER_HOUR: z.coerce.number().int().positive().default(30),
+  // Spoken previews per hour. The editor prepares one on its own after each pause in typing, so this is a ceiling on cost, not on edits.
+  SYNTHESIS_LIMIT_PER_HOUR: z.coerce.number().int().positive().default(60),
+  // The same ceiling for a guest, who has not given an email address.
+  GUEST_SYNTHESIS_LIMIT_PER_HOUR: z.coerce.number().int().positive().default(20),
   DEMO_WORKSPACES_PER_IP_PER_HOUR: z.coerce.number().int().positive().default(10),
 });
 
