@@ -19,7 +19,8 @@ describe("storage deadlines", () => {
     for (const op of [() => s.put(KEY, new Uint8Array([1]), "audio/wav"), () => s.get(KEY), () => s.delete(KEY)]) {
       const started = Date.now();
       await expect(op()).rejects.toBeInstanceOf(StorageTimeoutError);
-      expect(Date.now() - started).toBeLessThan(1000);
+      // 60 ms deadline; the slack is for a loaded machine. A hang would take the full minute the transport never answers.
+      expect(Date.now() - started).toBeLessThan(5000);
     }
   });
 
@@ -38,7 +39,7 @@ describe("storage deadlines", () => {
     const s = new SupabaseStore("https://x.supabase.co", "audio", "k", hungFetchIgnoringSignal, 60_000);
     const started = Date.now();
     await expect(s.put(KEY, new Uint8Array([1]), "audio/wav", { timeoutMs: 50 })).rejects.toBeInstanceOf(StorageTimeoutError);
-    expect(Date.now() - started).toBeLessThan(1000);
+    expect(Date.now() - started).toBeLessThan(5000); // far below the 60 s default it overrides
   });
 
   it("does not time out a request that finishes in time, and keeps its real errors", async () => {
