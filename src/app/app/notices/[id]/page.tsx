@@ -94,6 +94,16 @@ export default async function NoticePage({
           <p className="mt-3 text-[13px] leading-5 text-faint">
             Share this link, not a downloaded audio file. A downloaded file never updates.
           </p>
+          {user.kind === "demo" && !user.email ? (
+            <p className="mt-3 rounded-lg border border-warn/40 bg-warn/[0.08] px-3.5 py-2.5 text-[13.5px] leading-5 text-fg" data-testid="guest-link-lifetime">
+              <strong className="font-medium">This link belongs to a guest session.</strong> The session stays with this browser for up to 30 days. When it
+              ends you can no longer update the announcement, and after a while the link stops working.{" "}
+              <Link href="/app/account" className="underline underline-offset-4">
+                Save your account with your email
+              </Link>{" "}
+              to keep it.
+            </p>
+          ) : null}
         </section>
 
         {notice.state === "withdrawn" ? (
