@@ -19,7 +19,7 @@ import { newId, newPublicToken, sha256Hex } from "../ids";
 import { log } from "../log";
 import { speechProvider } from "../speech";
 import { SpeechProviderError, type SpeechProvider } from "../speech/provider";
-import { objectStore, publishedKey, stagingKey } from "../storage/audio";
+import { objectStore, publishedKey, StorageTimeoutError, stagingKey } from "../storage/audio";
 import { factChanges } from "./diff";
 import { findAmbiguousSpokenFact } from "./facts";
 import { isValidTimezone } from "./validation";
@@ -29,6 +29,8 @@ const EDITABLE: NoticeRevision["status"][] = ["draft", "failed", "preview_ready"
 const MAX_RETRIES = 2;
 /** Time reserved after the provider returns for validation, storage and the database commit: 10% of the deadline, at most 5 s. */
 const postSynthesisReserveMs = () => Math.min(5_000, env().SYNTHESIS_DEADLINE_MS * 0.1);
+/** A storage request with less than this left is not started. */
+const MIN_STORAGE_MS = 100;
 /** An attempt that cannot get at least this long is not started: 10% of the deadline, at most 5 s. */
 const minAttemptMs = () => Math.min(5_000, env().SYNTHESIS_DEADLINE_MS * 0.1);
 /** How long a synthesizing claim is trusted after the request deadline before another request may take it over. */
@@ -126,6 +128,7 @@ export async function createNotice(
       title: input.title,
       displayText: input.text,
       speechText,
+      sourceUrl: input.sourceUrl,
       voiceId: input.voiceId,
       provider: provider.kind,
       modelId: provider.modelId,
@@ -139,7 +142,7 @@ export async function createNotice(
 export async function createRevision(
   ownerId: string,
   noticeId: string,
-  input: { title?: string; text: string; voiceId?: string; updatePreface?: string | null; clientToken?: string },
+  input: { title?: string; text: string; voiceId?: string; updatePreface?: string | null; sourceUrl?: string | null; clientToken?: string },
 ) {
   const db = await getDb();
   const notice = await ownedNotice(db, ownerId, noticeId);
@@ -178,6 +181,8 @@ export async function createRevision(
       displayText: input.text,
       speechText,
       updatePreface: input.updatePreface ?? null,
+      // A correction starts from the link listeners see now; the publisher may change it before approving.
+      sourceUrl: input.sourceUrl !== undefined ? input.sourceUrl : notice.sourceUrl,
       updateSummary: base ? summarize(base.displayText, input.text) : null,
       voiceId,
       provider: provider.kind,
@@ -248,6 +253,7 @@ export async function updateDraft(
         voiceId,
         updatePreface,
         updateSummary,
+        ...(input.sourceUrl !== undefined ? { sourceUrl: input.sourceUrl } : {}),
         provider: provider.kind,
         modelId: provider.modelId,
         synthesisKey,
@@ -392,8 +398,22 @@ export async function generatePreview(ownerId: string, revisionId: string) {
     const ext = inspection.mimeType === "audio/mpeg" ? "mp3" : "wav";
     const objectKey = stagingKey(notice.id, revisionId, sha256, ext);
     const store = objectStore();
-    await store.put(objectKey, result.audio, inspection.mimeType);
-    const stored = await store.get(objectKey);
+    // Storage gets what is left of the one request deadline (less a moment to record the outcome), and never more than
+    // its own ceiling, so a slow store fails this attempt cleanly instead of outliving the function.
+    const commitReserve = Math.min(1_000, postSynthesisReserveMs() / 2);
+    const storageBudget = () => {
+      const left = remaining() - commitReserve;
+      if (left < MIN_STORAGE_MS) throw new SpeechProviderError("timeout", "Saving the audio ran out of time. Try again.", true);
+      return Math.min(env().STORAGE_TIMEOUT_MS, left);
+    };
+    let stored: Uint8Array | null;
+    try {
+      await store.put(objectKey, result.audio, inspection.mimeType, { timeoutMs: storageBudget() });
+      stored = await store.get(objectKey, { timeoutMs: storageBudget() });
+    } catch (err) {
+      if (err instanceof StorageTimeoutError) throw new SpeechProviderError("timeout", "Saving the audio took too long. Try again.", true);
+      throw err;
+    }
     if (!stored || sha256Hex(stored) !== sha256) throw new SpeechProviderError("provider_error", "Stored audio did not verify.", true);
 
     const assetId = newId("aud");
@@ -499,6 +519,16 @@ export async function generatePreview(ownerId: string, revisionId: string) {
   }
 }
 
+/** A storage request that hit its deadline becomes a retryable 503 instead of an anonymous 500. */
+async function withStorageTimeout<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (err) {
+    if (err instanceof StorageTimeoutError) throw new AppError("provider_unavailable", "Saving the audio is taking too long. Try again in a moment.", true);
+    throw err;
+  }
+}
+
 export async function approveRevision(ownerId: string, revisionId: string, opts: { expectedVersion?: number } = {}) {
   const db = await getDb();
   const { revision, notice } = await ownedRevision(db, ownerId, revisionId);
@@ -516,7 +546,7 @@ export async function approveRevision(ownerId: string, revisionId: string, opts:
 
   // Verify the staged bytes again and copy them to an immutable, revision-specific published path.
   const store = objectStore();
-  const bytes = await store.get(staged.objectKey);
+  const bytes = await withStorageTimeout(() => store.get(staged.objectKey));
   if (!bytes || sha256Hex(bytes) !== staged.sha256 || !inspectAudio(bytes).ok) {
     throw new AppError("audio_not_ready", "The preview audio failed verification. Generate it again.", true);
   }
@@ -538,8 +568,8 @@ export async function approveRevision(ownerId: string, revisionId: string, opts:
     providerLatencyMs: staged.providerLatencyMs,
     contentReady: false,
   });
-  await store.put(pubKey, bytes, staged.mimeType);
-  const check = await store.get(pubKey);
+  await withStorageTimeout(() => store.put(pubKey, bytes, staged.mimeType));
+  const check = await withStorageTimeout(() => store.get(pubKey));
   if (!check || sha256Hex(check) !== staged.sha256) throw new AppError("internal", "Published audio did not verify.", true);
 
   const publishedAt = new Date();
@@ -595,7 +625,8 @@ export async function approveRevision(ownerId: string, revisionId: string, opts:
     }
     const swapped = await tx
       .update(notices)
-      .set({ currentRevisionId: revision.id, state: "published", title: revision.title, updatedAt: publishedAt })
+      // The revision's source link goes live with it, atomically, together with its text and audio.
+      .set({ currentRevisionId: revision.id, state: "published", title: revision.title, sourceUrl: revision.sourceUrl, updatedAt: publishedAt })
       .where(
         and(
           eq(notices.id, notice.id),
