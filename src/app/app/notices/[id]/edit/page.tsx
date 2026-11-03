@@ -9,7 +9,7 @@ import { AppHeader } from "@/components/app/app-header";
 import { NoticeEditor } from "@/components/app/notice-editor";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Edit notice", robots: { index: false } };
+export const metadata: Metadata = { title: "Edit announcement", robots: { index: false } };
 
 export default async function EditNoticePage({ params }: { params: Promise<{ id: string }> }) {
   const user = await currentUser();
@@ -37,16 +37,15 @@ export default async function EditNoticePage({ params }: { params: Promise<{ id:
       <AppHeader workspaceLabel={user.email ?? user.displayName} isDemo={user.kind === "demo"} hasEmail={!!user.email} />
       <main id="main" className="mx-auto max-w-[1180px] px-4 py-8 sm:px-6 sm:py-12">
         <Link href={notice.state === "draft" ? "/app" : `/app/notices/${notice.id}`} className="text-[14px] text-muted hover:text-fg">
-          ← {notice.state === "draft" ? "Notices" : notice.title}
+          ← {notice.state === "draft" ? "Your announcements" : notice.title}
         </Link>
         <h1 className="mt-4 mb-8 text-[clamp(1.75rem,4vw,2.25rem)] leading-tight font-semibold tracking-[-0.04em]">
-          {notice.state === "draft" ? "Generate, listen, publish" : "Correct this notice"}
+          {notice.state === "draft" ? "Write, listen, publish" : "Update this announcement"}
         </h1>
         <NoticeEditor
           noticeId={notice.id}
           noticeState={notice.state}
           publicPath={`/n/${notice.publicToken}`}
-          isDemo={notice.isDemo}
           sourceUrl={draft ? draft.sourceUrl : notice.sourceUrl}
           base={
             current
@@ -64,6 +63,7 @@ export default async function EditNoticePage({ params }: { params: Promise<{ id:
               ? {
                   revisionId: draft.id,
                   version: draft.version,
+                  status: draft.status,
                   title: draft.title,
                   displayText: draft.displayText,
                   updatePreface: draft.updatePreface,
