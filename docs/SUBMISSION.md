@@ -6,7 +6,7 @@ Official form: https://forms.gle/NtYDsi3bgqMDK29j9. Submit only after the owner 
 - **One-liner:** A spoken notice you can correct after the link is shared.
 - **Repository:** https://github.com/TheWeirdDee/aftersend
 - **Live app:** https://aftersend-sigma.vercel.app (deployed 30 Oct 2026; the full publish-correct-withdraw journey is **not yet verified on it**, see `RESULTS.md`)
-- **Demo video:** **TBD** (not recorded)
+- **Demo video:** footage recorded from the deployed site (silent, captioned, 2 min 15 s) in `evidence/demo-video/`; narration not recorded; the required length is unconfirmed
 
 **Problem.** On 14 May 2026, Lagos education authorities had to publicly deny a school-dismissal message circulating in parent groups. Once a notice or voice note is forwarded, the school can't change it. Corrections travel slower than the original.
 
