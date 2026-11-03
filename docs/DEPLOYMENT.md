@@ -156,6 +156,12 @@ Finally run the judge path on the deployed URL from a phone and a desktop: sign 
 - **Rolling back a bad deploy.** Vercel → Deployments → promote the previous deployment. Migrations in this repository only add columns and tables, so the previous build keeps working against the newer schema.
 - **Costs.** Nothing here enables a paid service. AssemblyAI usage is billed by that account; the app rate-limits synthesis per user and IP (`SYNTHESIS_LIMIT_PER_HOUR`).
 
+### Guest limits, and rolling a deploy back
+
+Guests (no email yet) are limited by `GUEST_SYNTHESIS_LIMIT_PER_HOUR` (default 20, per guest) and `GUEST_SYNTHESIS_PER_DAY` (default 400, all guests together); signed-in accounts use `SYNTHESIS_LIMIT_PER_HOUR` (default 60). The editor asks for speech after every pause in typing, so these are the ceiling on cost. Lower them if the speech budget is tight; the guest start page says guests have a limit.
+
+`main` deploys to production through the Vercel Git integration, and the build runs `npm run db:migrate`. Migration `0003` only adds a nullable column and fills it, so the previous deployment keeps working against the migrated database: if a deploy is bad, use Vercel's **Instant Rollback** to the previous deployment (no data change needed). Run `npm run verify:deploy -- <url> --storage` after every deploy, and `npm run verify:live:guest -- <url> --confirm-live` to spend two real syntheses on the guest journey. `npm run secret:scan` checks the tree and history for the real values in `.env.local` before a push.
+
 ## Platform limits this design depends on (checked 30 Oct 2026)
 
 Looked up in the providers' documentation on the date above; they can change, so re-check anything that looks wrong in your own dashboard.
