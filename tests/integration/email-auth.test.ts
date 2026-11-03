@@ -378,7 +378,7 @@ describe("linking an existing workspace", () => {
     const result = await signIn(address, owner);
     expect(result).toMatchObject({ userId: owner, linked: true, created: false, merged: 0 });
     expect(await ownerOf(noticeId)).toBe(owner);
-    expect(mailTo(address).at(-1)!.text).toContain("connect this email to the AfterSend workspace you have open (1 notice)");
+    expect(mailTo(address).at(-1)!.text).toContain("save the announcements you have open (1) to this email");
   });
 
   it("does not link when the code is verified from a different browser session than the one that asked", async () => {
@@ -402,15 +402,40 @@ describe("linking an existing workspace", () => {
     expect([asker, other]).not.toContain(result.userId);
   });
 
-  it("never links a demo workspace", async () => {
-    const demo = await workspace("demo");
+  it("saves a guest to the email that was verified, keeping every announcement and turning the guest into an account", async () => {
+    const guest = await workspace("demo");
+    const noticeId = await withNotice(guest);
     const address = newAddress();
-    await auth.requestCode({ email: address, linkUserId: demo, ip: freshIp() });
-    expect(mailTo(address).at(-1)!.text).toContain("sign you in");
-    const result = await auth.verifyCode({ email: address, code: lastCode(address)!, sessionUserId: demo, ip: freshIp() });
+    const result = await signIn(address, guest);
+    expect(result).toMatchObject({ userId: guest, linked: true, created: false, merged: 0 });
+    expect(await ownerOf(noticeId)).toBe(guest);
+    expect(mailTo(address).at(-1)!.text).toContain("save the announcements you have open (1) to this email");
+    const db = await getDb();
+    const row = (await db.select().from(schema.users).where(eq(schema.users.id, guest)))[0]!;
+    expect(row).toMatchObject({ email: address, kind: "workspace" });
+    expect(row.emailVerifiedAt).not.toBeNull();
+  });
+
+  it("does not save a guest to an email when the code is verified from another browser", async () => {
+    const guest = await workspace("demo");
+    const address = newAddress();
+    await auth.requestCode({ email: address, linkUserId: guest, ip: freshIp() });
+    const result = await auth.verifyCode({ email: address, code: lastCode(address)!, sessionUserId: null, ip: freshIp() });
     expect(result).toMatchObject({ linked: false, created: true });
     const db = await getDb();
-    expect((await db.select().from(schema.users).where(eq(schema.users.id, demo)))[0]!.email).toBeNull();
+    expect((await db.select().from(schema.users).where(eq(schema.users.id, guest)))[0]).toMatchObject({ email: null, kind: "demo" });
+  });
+
+  it("moves a guest's announcements into an account that already owns the address", async () => {
+    const address = newAddress();
+    const account = (await signIn(address)).userId;
+    const guest = await workspace("demo");
+    const guestNotice = await withNotice(guest, "Written as a guest");
+    const result = await signIn(address, guest);
+    expect(result).toMatchObject({ userId: account, merged: 1 });
+    expect(await ownerOf(guestNotice)).toBe(account);
+    const db = await getDb();
+    expect(await db.select().from(schema.users).where(eq(schema.users.id, guest))).toHaveLength(0);
   });
 
   it("merges a browser workspace into the account that already owns the address, moving notices one way only", async () => {
