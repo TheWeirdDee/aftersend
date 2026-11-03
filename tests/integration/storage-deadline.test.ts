@@ -79,7 +79,9 @@ describe("storage inside the synthesis deadline", () => {
 
     const started = Date.now();
     await expect(svc.generatePreview(owner, revisionId)).rejects.toMatchObject({ code: "synthesis_failed", retryable: true });
-    expect(Date.now() - started).toBeLessThan(3000); // never outlives the function
+    // Never outlives the function: the deadline is 3 s and storage would have taken a minute. The slack is for a loaded
+    // machine; the exact budget is asserted below through the timeout storage was given.
+    expect(Date.now() - started).toBeLessThan(3000 + 5000);
 
     // The outcome was recorded, so the draft is not stuck in 'synthesizing'.
     expect((await revision(revisionId)).status).toBe("failed");
