@@ -1,0 +1,186 @@
+{
+  "base": "http://localhost:3100",
+  "at": "2026-11-03T14:45:58.223Z",
+  "findings": [
+    {
+      "k": "fresh / -> final URL",
+      "v": "/"
+    },
+    {
+      "k": "fresh / -> status",
+      "v": "200"
+    },
+    {
+      "k": "fresh / -> h1",
+      "v": "One announcement link, even when pickup time changes."
+    },
+    {
+      "k": "fresh / -> sections on page",
+      "v": [
+        "how",
+        "correct",
+        "trust",
+        "faq",
+        "problem"
+      ]
+    },
+    {
+      "k": "fresh /demo -> final URL",
+      "v": "/"
+    },
+    {
+      "k": "fresh /demo -> status",
+      "v": "200"
+    },
+    {
+      "k": "fresh /demo -> h1",
+      "v": "One announcement link, even when pickup time changes."
+    },
+    {
+      "k": "fresh /demo -> sections on page",
+      "v": [
+        "how",
+        "correct",
+        "trust",
+        "faq",
+        "problem"
+      ]
+    },
+    {
+      "k": "fresh CTA element on /",
+      "v": "button"
+    },
+    {
+      "k": "fresh after clicking Create an announcement",
+      "v": "/app/notices/ntc_51297c0afaf843f3681e2142/edit"
+    },
+    {
+      "k": "fresh ...heading there",
+      "v": "Write, listen, publish"
+    },
+    {
+      "k": "fresh / nav \"How it works\"",
+      "v": "/#how (section top 88px, h1 \"One announcement link, even when pickup time cha\")"
+    },
+    {
+      "k": "fresh / nav \"Corrections\"",
+      "v": "/#correct (section top 88px, h1 \"One announcement link, even when pickup time cha\")"
+    },
+    {
+      "k": "fresh / nav \"Trust\"",
+      "v": "/#trust (section top 88px, h1 \"One announcement link, even when pickup time cha\")"
+    },
+    {
+      "k": "fresh / nav \"FAQ\"",
+      "v": "/#faq (section top 88px, h1 \"One announcement link, even when pickup time cha\")"
+    },
+    {
+      "k": "fresh /demo nav \"How it works\"",
+      "v": "/#how (section top 88px, h1 \"One announcement link, even when pickup time cha\")"
+    },
+    {
+      "k": "fresh /demo nav \"Corrections\"",
+      "v": "/#correct (section top 88px, h1 \"One announcement link, even when pickup time cha\")"
+    },
+    {
+      "k": "fresh /demo nav \"Trust\"",
+      "v": "/#trust (section top 88px, h1 \"One announcement link, even when pickup time cha\")"
+    },
+    {
+      "k": "fresh /demo nav \"FAQ\"",
+      "v": "/#faq (section top 88px, h1 \"One announcement link, even when pickup time cha\")"
+    },
+    {
+      "k": "guest session created",
+      "v": "201"
+    },
+    {
+      "k": "guest / -> final URL",
+      "v": "/"
+    },
+    {
+      "k": "guest / -> status",
+      "v": "200"
+    },
+    {
+      "k": "guest / -> h1",
+      "v": "One announcement link, even when pickup time changes."
+    },
+    {
+      "k": "guest / -> sections on page",
+      "v": [
+        "how",
+        "correct",
+        "trust",
+        "faq",
+        "problem"
+      ]
+    },
+    {
+      "k": "guest /demo -> final URL",
+      "v": "/"
+    },
+    {
+      "k": "guest /demo -> status",
+      "v": "200"
+    },
+    {
+      "k": "guest /demo -> h1",
+      "v": "One announcement link, even when pickup time changes."
+    },
+    {
+      "k": "guest /demo -> sections on page",
+      "v": [
+        "how",
+        "correct",
+        "trust",
+        "faq",
+        "problem"
+      ]
+    },
+    {
+      "k": "guest CTA element on /",
+      "v": "button"
+    },
+    {
+      "k": "guest after clicking Create an announcement",
+      "v": "/app/notices/new"
+    },
+    {
+      "k": "guest ...heading there",
+      "v": "New announcement"
+    },
+    {
+      "k": "guest / nav \"How it works\"",
+      "v": "/#how (section top 88px, h1 \"One announcement link, even when pickup time cha\")"
+    },
+    {
+      "k": "guest / nav \"Corrections\"",
+      "v": "/#correct (section top 88px, h1 \"One announcement link, even when pickup time cha\")"
+    },
+    {
+      "k": "guest / nav \"Trust\"",
+      "v": "/#trust (section top 88px, h1 \"One announcement link, even when pickup time cha\")"
+    },
+    {
+      "k": "guest / nav \"FAQ\"",
+      "v": "/#faq (section top 88px, h1 \"One announcement link, even when pickup time cha\")"
+    },
+    {
+      "k": "guest /demo nav \"How it works\"",
+      "v": "/#how (section top 88px, h1 \"One announcement link, even when pickup time cha\")"
+    },
+    {
+      "k": "guest /demo nav \"Corrections\"",
+      "v": "/#correct (section top 88px, h1 \"One announcement link, even when pickup time cha\")"
+    },
+    {
+      "k": "guest /demo nav \"Trust\"",
+      "v": "/#trust (section top 88px, h1 \"One announcement link, even when pickup time cha\")"
+    },
+    {
+      "k": "guest /demo nav \"FAQ\"",
+      "v": "/#faq (section top 88px, h1 \"One announcement link, even when pickup time cha\")"
+    }
+  ]
+}
