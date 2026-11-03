@@ -47,7 +47,7 @@ export default async function EditNoticePage({ params }: { params: Promise<{ id:
           noticeState={notice.state}
           publicPath={`/n/${notice.publicToken}`}
           isDemo={notice.isDemo}
-          sourceUrl={notice.sourceUrl}
+          sourceUrl={draft ? draft.sourceUrl : notice.sourceUrl}
           base={
             current
               ? {
