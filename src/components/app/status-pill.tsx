@@ -8,7 +8,7 @@ export function NoticeStatePill({ state, openDrafts = 0 }: { state: Notice["stat
       <span className="pill border-signal/40 text-signal">
         <span className="size-1.5 rounded-full bg-signal" aria-hidden /> Live
       </span>
-      {openDrafts > 0 ? <span className="pill border-warn/40 text-warn">Unpublished changes</span> : null}
+      {openDrafts > 0 ? <span className="pill border-warn/40 text-warn">Update in progress</span> : null}
     </span>
   );
 }
@@ -16,11 +16,11 @@ export function NoticeStatePill({ state, openDrafts = 0 }: { state: Notice["stat
 const REV_LABEL: Record<NoticeRevision["status"], [string, string]> = {
   draft: ["Draft", "border-line-strong text-muted"],
   queued: ["Queued", "border-line-strong text-muted"],
-  synthesizing: ["Generating audio", "border-line-strong text-muted"],
-  preview_ready: ["Preview ready", "border-warn/40 text-warn"],
-  failed: ["Generation failed", "border-danger/40 text-danger"],
-  published: ["Current", "border-signal/40 text-signal"],
-  superseded: ["Previous", "border-line-strong text-muted"],
+  synthesizing: ["Updating voice", "border-line-strong text-muted"],
+  preview_ready: ["Ready to listen", "border-warn/40 text-warn"],
+  failed: ["Voice update failed", "border-danger/40 text-danger"],
+  published: ["Live", "border-signal/40 text-signal"],
+  superseded: ["Replaced", "border-line-strong text-muted"],
   discarded: ["Discarded", "border-line-strong text-faint"],
 };
 
