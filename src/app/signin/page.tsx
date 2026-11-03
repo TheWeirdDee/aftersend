@@ -12,18 +12,18 @@ export const metadata: Metadata = { title: "Sign in", robots: { index: false } }
 export default async function SignInPage() {
   const user = await currentUser();
   if (user?.email) redirect("/app");
-  // Only a plain workspace can be connected to an email; a demo workspace never can.
-  const linkNotices = user && user.kind === "workspace" ? (await listNotices(user.id)).length : null;
+  // A guest session (or an account with no email yet) is saved to the email that gets verified here.
+  const linkNotices = user ? (await listNotices(user.id)).length : null;
 
   return (
     <>
       <AppHeader />
       <main id="main" className="mx-auto grid min-h-[calc(100dvh-64px)] max-w-[1180px] place-items-center px-4 py-16 sm:px-6">
         <div className="w-full max-w-md">
-          <p className="eyebrow">Sign in or create a workspace</p>
-          <h1 className="mt-4 text-[clamp(1.85rem,5vw,2.5rem)] leading-[1.05] font-semibold tracking-[-0.04em]">Use your email to get back to your notices.</h1>
+          <p className="eyebrow">Sign in or save your account</p>
+          <h1 className="mt-4 text-[clamp(1.85rem,5vw,2.5rem)] leading-[1.05] font-semibold tracking-[-0.04em]">Use your email to get back to your announcements.</h1>
           <p className="mt-4 text-[16px] leading-[1.6] text-muted">
-            Your notices are tied to your email, so you can open them from any device, and recover them if you clear your browser. Published links never
+            Your announcements are saved to your email, so you can reach them from any device and recover them if you clear your browser. Published links never
             depend on signing in.
           </p>
           <div className="mt-8">
@@ -32,7 +32,7 @@ export default async function SignInPage() {
           <p className="mt-8 text-[13px] leading-5 text-faint">
             No password to remember or leak. Codes work once and expire in 10 minutes.{" "}
             <Link href="/app" className="underline underline-offset-4">
-              Back to the workspace
+              Back to your announcements
             </Link>
             .
           </p>
