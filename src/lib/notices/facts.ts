@@ -53,6 +53,27 @@ function textDateIsReal(value: string) {
   return day >= 1 && day <= daysIn(month, year ? Number(year) : null);
 }
 
+const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/**
+ * "Friday, 24 October 2026" names a Friday and a date; when the year is written they can be checked against each other.
+ * Returns what is wrong in plain words, or undefined when they agree or there is not enough to check.
+ */
+function weekdayMismatch(value: string): string | undefined {
+  const said = new RegExp(`^(${WEEKDAYS})\\b`, "i").exec(value)?.[1];
+  const year = value.match(/\b(\d{4})\b/)?.[1];
+  if (!said || !year) return undefined;
+  const name = value.match(new RegExp(`\\b(${MONTHS})`, "i"))?.[1]?.slice(0, 3).toLowerCase() ?? "";
+  const month = MONTH_NAMES.indexOf(name) + 1;
+  const day = Number(value.replace(said, "").match(/\b(\d{1,2})(?:st|nd|rd|th)?\b/)?.[1]);
+  if (!month || !day || day > daysIn(month, Number(year))) return undefined;
+  const actual = new Date(Date.UTC(Number(year), month - 1, day)).getUTCDay();
+  const wanted = WEEKDAY_NAMES.findIndex((n) => n.slice(0, 3).toLowerCase() === said.slice(0, 3).toLowerCase());
+  if (actual === wanted) return undefined;
+  const written = value.slice(said.length).replace(/^,?\s+/, "");
+  return `${WEEKDAY_NAMES[wanted]} is not ${written}: that date is a ${WEEKDAY_NAMES[actual]}. Fix the day or the date.`;
+}
+
 /** For dd/mm/yyyy and mm/dd/yyyy: which of the two readings are real calendar dates. */
 function numericDateReadings(a: number, b: number, rawYear: string) {
   const year = rawYear.length === 2 ? 2000 + Number(rawYear) : Number(rawYear);
@@ -74,7 +95,14 @@ export function detectCriticalFacts(text: string): CriticalFact[] {
 
   for (const m of text.matchAll(DATE_TEXT_RE)) {
     const real = textDateIsReal(m[0]);
-    add({ kind: "date", value: m[0], index: m.index, ambiguous: !real, note: real ? undefined : "This date is not on the calendar." });
+    const mismatch = real ? weekdayMismatch(m[0]) : undefined;
+    add({
+      kind: "date",
+      value: m[0],
+      index: m.index,
+      ambiguous: !real || !!mismatch,
+      note: real ? mismatch : "This date is not on the calendar.",
+    });
   }
   for (const m of text.matchAll(DATE_NUMERIC_RE)) {
     const a = Number(m[1]);
