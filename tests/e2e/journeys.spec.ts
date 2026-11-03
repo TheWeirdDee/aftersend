@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { generateListenApprove, publicUrl, startDemo, versionOf } from "./helpers";
+import { generateListenApprove, publicUrl, startDemo, startGuestViaApi, versionOf } from "./helpers";
 
 test("Journey A + B: publish, then correct 3:00 PM → 4:00 PM at the unchanged link", async ({ page, context }) => {
   await startDemo(page);
-  await expect(page.getByRole("button", { name: /Approve and publish/ }).first()).toBeDisabled();
-  await generateListenApprove(page, /Approve and publish/);
-  await expect(page.getByText("Version 1 is live.")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Publish announcement/ }).first()).toBeDisabled();
+  await generateListenApprove(page, /Publish announcement/);
+  await expect(page.getByText("Your announcement is live.")).toBeVisible();
   const url = await publicUrl(page);
 
   const listener = await context.newPage();
@@ -16,16 +16,16 @@ test("Journey A + B: publish, then correct 3:00 PM → 4:00 PM at the unchanged 
   const audio1 = await listener.locator("audio").getAttribute("src");
 
   // Correction
-  await page.getByRole("link", { name: /Correct this notice/ }).click();
-  const text = page.getByLabel("Notice text");
+  await page.getByRole("link", { name: /Update this announcement/ }).click();
+  const text = page.getByLabel("Announcement", { exact: true });
   await text.fill((await text.inputValue()).replace("3:00 PM", "4:00 PM"));
-  await expect(page.getByText("Draft saved")).toBeVisible();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   await expect(page.locator("del", { hasText: "3:00" })).toBeVisible();
   await expect(page.locator("ins", { hasText: "4:00" })).toBeVisible();
   await page.getByRole("button", { name: /Use suggestion/ }).click();
-  await expect(page.getByLabel(/Update note/)).toHaveValue("Update: Pickup is at 4:00 PM at the main gate.");
-  await generateListenApprove(page, /Approve update/);
-  await expect(page.getByText("Version 2 is live.")).toBeVisible();
+  await expect(page.getByLabel(/Spoken correction note/)).toHaveValue("Update: Pickup is at 4:00 PM at the main gate.");
+  await generateListenApprove(page, /Update announcement/);
+  await expect(page.getByText("Your update is live.")).toBeVisible();
   expect(await publicUrl(page)).toBe(url);
 
   // Same link, refreshed: new text, new audio, revision label.
@@ -33,8 +33,8 @@ test("Journey A + B: publish, then correct 3:00 PM → 4:00 PM at the unchanged 
   expect(listener.url()).toBe(url);
   await expect(listener.getByTestId("notice-text")).toContainText("Pickup is at 4:00 PM");
   await expect(listener.getByTestId("notice-text")).not.toContainText("3:00 PM");
-  await expect(listener.getByTestId("revised-banner")).toContainText("This notice was revised. This is version 2.");
-  await expect(listener.getByTestId("revised-banner")).toContainText("Current time: 4:00 PM");
+  await expect(listener.getByTestId("revised-banner")).toContainText("This announcement was corrected.");
+  await expect(listener.getByTestId("revised-banner")).toContainText("The time is now 4:00 PM");
   const audio2 = await listener.locator("audio").getAttribute("src");
   expect(audio2).not.toBe(audio1);
   const res = await listener.request.get(audio2!);
@@ -52,16 +52,17 @@ test("Journey A + B: publish, then correct 3:00 PM → 4:00 PM at the unchanged 
 
 test("Journey C: a failed synthesis blocks approval and the published version stays live", async ({ page, context }) => {
   await startDemo(page);
-  await generateListenApprove(page, /Approve and publish/);
+  await generateListenApprove(page, /Publish announcement/);
   const url = await publicUrl(page);
-  await page.getByRole("link", { name: /Correct this notice/ }).click();
-  const text = page.getByLabel("Notice text");
+  await page.getByRole("link", { name: /Update this announcement/ }).click();
+  const text = page.getByLabel("Announcement", { exact: true });
   // Test-only fault injection marker understood by the test-tone provider.
   await text.fill(`${await text.inputValue()} [[fail-synthesis]]`);
-  await expect(page.getByText("Draft saved")).toBeVisible();
-  await page.getByRole("button", { name: /Generate preview/ }).first().click();
-  await expect(page.getByRole("alert").filter({ hasText: "Audio generation failed" })).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByRole("button", { name: /Approve update/ }).first()).toBeDisabled();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  // The voice is prepared by itself after the pause; the injected fault makes that fail, visibly, with a way to retry.
+  await expect(page.getByRole("status").filter({ hasText: "Voice update failed" })).toBeVisible({ timeout: 40_000 });
+  await expect(page.getByRole("button", { name: "Retry audio" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Update announcement/ }).first()).toBeDisabled();
 
   const listener = await context.newPage();
   await listener.goto(url);
@@ -81,7 +82,7 @@ test("Journey E: another workspace cannot read or change a notice", async ({ pag
   const other = await browser.newContext();
   const intruder = await other.newPage();
   await intruder.goto("/demo");
-  await intruder.getByRole("button", { name: "Start the demo" }).click();
+  await intruder.getByRole("button", { name: "Start writing" }).click();
   await expect(intruder).toHaveURL(/\/edit$/);
   const base = new URL(page.url()).origin;
   const headers = { Origin: base, "Content-Type": "application/json" };
@@ -89,7 +90,7 @@ test("Journey E: another workspace cannot read or change a notice", async ({ pag
   expect((await intruder.request.post(`/api/notices/${noticeId}/revisions`, { headers, data: { text: "hijack" } })).status()).toBe(404);
   expect((await intruder.request.post(`/api/notices/${noticeId}/withdraw`, { headers })).status()).toBe(404);
   await intruder.goto(`/app/notices/${noticeId}/edit`);
-  await expect(intruder.getByRole("heading", { name: "Page not found." })).toBeVisible();
+  await expect(intruder.getByRole("heading", { name: "This page does not exist." })).toBeVisible();
 
   // Unauthenticated and cross-site requests are refused.
   const anon = await browser.newContext();
@@ -101,7 +102,7 @@ test("Journey E: another workspace cannot read or change a notice", async ({ pag
 
 test("Journey F: competing approvals cannot silently overwrite each other", async ({ page }) => {
   await startDemo(page);
-  await generateListenApprove(page, /Approve and publish/);
+  await generateListenApprove(page, /Publish announcement/);
   const noticeId = page.url().match(/ntc_[a-f0-9]+/)![0];
   const origin = new URL(page.url()).origin;
   const headers = { Origin: origin, "Content-Type": "application/json" };
@@ -127,9 +128,7 @@ test("Journey F: competing approvals cannot silently overwrite each other", asyn
 });
 
 test("approval is refused without confirmed facts or ready audio", async ({ page }) => {
-  await startDemo(page);
-  const noticeId = page.url().match(/ntc_[a-f0-9]+/)![0];
-  const origin = new URL(page.url()).origin;
+  const { noticeId, origin } = await startGuestViaApi(page);
   const headers = { Origin: origin, "Content-Type": "application/json" };
   const detail = await (await page.request.get(`/api/notices/${noticeId}`)).json();
   const rev = detail.revisions[0].id;
