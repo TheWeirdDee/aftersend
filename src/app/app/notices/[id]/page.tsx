@@ -14,7 +14,7 @@ import { WithdrawButton } from "@/components/app/withdraw-button";
 import { Check, External, Pencil } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Notice", robots: { index: false } };
+export const metadata: Metadata = { title: "Announcement", robots: { index: false } };
 
 export default async function NoticePage({
   params,
@@ -44,18 +44,18 @@ export default async function NoticePage({
       <AppHeader workspaceLabel={user.email ?? user.displayName} isDemo={user.kind === "demo"} hasEmail={!!user.email} />
       <main id="main" className="mx-auto max-w-[1180px] px-4 py-8 sm:px-6 sm:py-12">
         <Link href="/app" className="text-[14px] text-muted hover:text-fg">
-          ← Notices
+          ← Your announcements
         </Link>
 
         {published && notice.state === "published" ? (
           <div role="status" className="mt-6 flex items-start gap-3 rounded-2xl border border-signal/40 bg-signal/[0.07] p-4 sm:p-5">
             <Check className="mt-0.5 size-5 shrink-0 text-signal" />
             <div>
-              <p className="font-medium">Version {published} is live.</p>
+              <p className="font-medium">{Number(published) > 1 ? "Your update is live." : "Your announcement is live."}</p>
               <p className="mt-1 text-[14.5px] text-muted">
                 {Number(published) > 1
-                  ? "The link you already shared now plays this version. Refresh any open listener page to hear it."
-                  : "Copy the link below and share it wherever you share notices."}
+                  ? "The link you already shared now plays the updated announcement. A listener page that is already open will offer the update."
+                  : "Copy the link below and share it wherever you share announcements."}
               </p>
             </div>
           </div>
@@ -66,20 +66,19 @@ export default async function NoticePage({
             <h1 className="text-[clamp(1.75rem,4vw,2.5rem)] leading-tight font-semibold tracking-[-0.04em]">{notice.title}</h1>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-[14px] text-muted">
               <NoticeStatePill state={notice.state} openDrafts={openDraft ? 1 : 0} />
-              {notice.isDemo ? <span className="pill border-warn/40 text-warn">Demo data</span> : null}
-              {current?.publishedAt ? <span>Version {current.revisionNumber} · {formatStamp(current.publishedAt, notice.timezone)}</span> : null}
+              {current?.publishedAt ? <span>Last updated {formatStamp(current.publishedAt, notice.timezone)}</span> : null}
             </div>
           </div>
           {notice.state === "published" ? (
             <Link href={`/app/notices/${notice.id}/edit`} className="btn-primary">
-              <Pencil /> {openDraft ? "Continue correction" : "Correct this notice"}
+              <Pencil /> {openDraft ? "Continue your update" : "Update this announcement"}
             </Link>
           ) : null}
         </div>
 
         <section aria-labelledby="link-heading" className="card mt-8 p-5 sm:p-6">
           <h2 id="link-heading" className="eyebrow">
-            Listener link · stays the same for every version
+            Share this link · it stays the same when you update
           </h2>
           <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-center">
             <code className="min-w-0 flex-1 truncate rounded-lg border border-line bg-ink-2 px-3.5 py-2.5 font-mono text-[14px] text-fg" data-testid="public-url">
@@ -93,7 +92,7 @@ export default async function NoticePage({
             </div>
           </div>
           <p className="mt-3 text-[13px] leading-5 text-faint">
-            Share this link, not a downloaded audio file. Downloaded files never update.
+            Share this link, not a downloaded audio file. A downloaded file never updates.
           </p>
         </section>
 
@@ -108,12 +107,12 @@ export default async function NoticePage({
             <section aria-labelledby="current-heading" className="min-w-0">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 id="current-heading" className="text-[19px] font-semibold tracking-[-0.02em]">
-                  Current version
+                  What listeners hear now
                 </h2>
                 {current.audio?.providerKind === "test" ? <TestAudioBadge /> : null}
               </div>
               <div className="mt-4">
-                <AudioPlayer key={current.id} src={`/api/revisions/${current.id}/audio`} label="current version" durationHintMs={current.audio?.durationMs} />
+                <AudioPlayer key={current.id} src={`/api/revisions/${current.id}/audio`} label="announcement" durationHintMs={current.audio?.durationMs} />
               </div>
               {current.updatePreface ? <p className="mt-5 rounded-lg border border-line bg-surface px-4 py-3 text-[15px]">{current.updatePreface}</p> : null}
               <div className="mt-5 text-[16px] leading-[1.7] whitespace-pre-wrap text-fg">{current.displayText}</div>
@@ -130,18 +129,18 @@ export default async function NoticePage({
 
           <section aria-labelledby="history-heading" className="min-w-0">
             <h2 id="history-heading" className="text-[19px] font-semibold tracking-[-0.02em]">
-              Version history
+              Announcement history
             </h2>
-            <p className="mt-1 text-[13.5px] text-muted">Only you can see this. Listeners always get the current version.</p>
+            <p className="mt-1 text-[13.5px] text-muted">Only you can see this. Listeners always get the latest approved version.</p>
             <ol className="mt-4 space-y-3">
               {revisions.map((r) => (
                 <li key={r.id} className="rounded-xl border border-line bg-surface p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-[15px] font-medium">{r.revisionNumber ? `Version ${r.revisionNumber}` : "Unpublished draft"}</span>
+                    <span className="text-[15px] font-medium">{r.revisionNumber ? (r.revisionNumber === 1 ? "First version" : `Update ${r.revisionNumber - 1}`) : "Unpublished draft"}</span>
                     <RevisionStatePill status={r.status} />
                   </div>
                   <p className="mt-2 line-clamp-2 text-[13.5px] leading-5 text-muted">{r.displayText}</p>
-                  <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-[11.5px] text-faint">
+                  <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-[12.5px] text-faint">
                     {r.publishedAt ? (
                       <>
                         <dt>Published</dt>
@@ -150,24 +149,8 @@ export default async function NoticePage({
                     ) : null}
                     {r.audio ? (
                       <>
-                        <dt>Audio</dt>
-                        <dd className="text-right">
-                          {formatDuration(r.audio.durationMs)} · {r.audio.providerKind === "test" ? "test tone" : r.provider}
-                        </dd>
-                        <dt>Generation</dt>
-                        <dd className="text-right">{r.audio.providerLatencyMs != null ? `${(r.audio.providerLatencyMs / 1000).toFixed(1)}s` : "–"}</dd>
-                        <dt>sha256</dt>
-                        <dd className="truncate text-right">{r.audio.sha256.slice(0, 16)}…</dd>
-                      </>
-                    ) : null}
-                    <dt>Voice</dt>
-                    <dd className="truncate text-right">{r.voiceId}</dd>
-                    {r.attempts.length ? (
-                      <>
-                        <dt>Attempts</dt>
-                        <dd className="text-right">
-                          {r.attempts.length} ({r.attempts.filter((a) => a.outcome === "success").length} ok)
-                        </dd>
+                        <dt>Spoken length</dt>
+                        <dd className="text-right">{formatDuration(r.audio.durationMs)}</dd>
                       </>
                     ) : null}
                   </dl>
