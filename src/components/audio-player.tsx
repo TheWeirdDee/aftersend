@@ -50,6 +50,10 @@ export function AudioPlayer({
   const reloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const watchdog = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stalls = useRef(0);
+  /** Playback was under way when the element failed, so it is started again once the audio has been reloaded. */
+  const resumeAfterReload = useRef(false);
+  /** The person last asked for audio to play (true) or to stop (false). */
+  const wantPlay = useRef(false);
 
   useEffect(
     () => () => {
@@ -86,8 +90,12 @@ export function AudioPlayer({
     a.load();
   };
 
+  // MEDIA_ERR_DECODE with AUDIO_RENDERER_ERROR is the browser failing to open the audio output (a device that is busy, switched
+  // or gone). It can happen a moment after playback starts, so the audio is loaded again and, if the person was listening,
+  // playback starts again from the beginning.
   const onMediaError = () => {
     setPlaying(false);
+    resumeAfterReload.current = wantPlay.current;
     if (reloads.current < MAX_AUTO_RELOADS) {
       reloads.current += 1;
       setState("loading");
@@ -117,6 +125,7 @@ export function AudioPlayer({
     if (a.paused) {
       try {
         setState("loading");
+        wantPlay.current = true;
         armWatchdog();
         await a.play();
         setState("idle");
@@ -127,6 +136,7 @@ export function AudioPlayer({
       }
     } else {
       // A person pausing is not a stuck start.
+      wantPlay.current = false;
       if (watchdog.current) clearTimeout(watchdog.current);
       a.pause();
     }
@@ -147,7 +157,14 @@ export function AudioPlayer({
         }}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
+        onCanPlay={(e) => {
+          if (!resumeAfterReload.current) return;
+          resumeAfterReload.current = false;
+          e.currentTarget.currentTime = 0;
+          e.currentTarget.play().catch(() => setState("error"));
+        }}
         onEnded={(e) => {
+          wantPlay.current = false;
           setPlaying(false);
           if (onListened) checkCoverage(e.currentTarget);
         }}
