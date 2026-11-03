@@ -55,6 +55,8 @@ const schema = z.object({
   SYNTHESIS_LIMIT_PER_HOUR: z.coerce.number().int().positive().default(60),
   // The same ceiling for a guest, who has not given an email address.
   GUEST_SYNTHESIS_LIMIT_PER_HOUR: z.coerce.number().int().positive().default(20),
+  // All guests together, per day: a ceiling on what anonymous traffic can spend of the speech budget.
+  GUEST_SYNTHESIS_PER_DAY: z.coerce.number().int().positive().default(400),
   DEMO_WORKSPACES_PER_IP_PER_HOUR: z.coerce.number().int().positive().default(10),
 });
 
