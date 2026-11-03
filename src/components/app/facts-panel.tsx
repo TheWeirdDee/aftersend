@@ -33,7 +33,7 @@ export function FactsPanel({ text, changedValues = [] }: { text: string; changed
                   f.ambiguous ? "border-danger/50 text-danger" : changed ? "border-signal/50 bg-signal/10 text-signal" : "border-line-strong text-fg"
                 }`}
               >
-                <span className="text-faint">{LABEL[f.kind]}</span> {f.value}
+                <span className="text-muted">{LABEL[f.kind]}</span> {f.value}
                 {changed ? <span className="sr-only">(changed)</span> : null}
               </li>
             );
