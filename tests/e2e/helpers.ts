@@ -3,10 +3,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { expect, type Page } from "@playwright/test";
 
-/** Starts a guest session from the public start page; it opens the editor on the sample announcement. */
+/** Starts a guest session the way a visitor does, from the homepage button; it opens the editor on the sample announcement. */
 export async function startDemo(page: Page) {
-  await page.goto("/demo");
-  await page.getByRole("button", { name: "Start writing" }).click();
+  await page.goto("/");
+  await page.getByRole("button", { name: "Create an announcement" }).first().click();
   await expect(page).toHaveURL(/\/app\/notices\/ntc_[a-f0-9]+\/edit$/);
 }
 
