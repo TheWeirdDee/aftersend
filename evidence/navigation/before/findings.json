@@ -1,0 +1,190 @@
+{
+  "base": "http://localhost:3100",
+  "at": "2026-11-03T13:55:50.826Z",
+  "findings": [
+    {
+      "k": "fresh / -> final URL",
+      "v": "/"
+    },
+    {
+      "k": "fresh / -> status",
+      "v": "200"
+    },
+    {
+      "k": "fresh / -> h1",
+      "v": "One announcement. One link. Even when plans change."
+    },
+    {
+      "k": "fresh / -> sections on page",
+      "v": [
+        "how",
+        "correct",
+        "trust",
+        "faq",
+        "problem"
+      ]
+    },
+    {
+      "k": "fresh /demo -> final URL",
+      "v": "/demo"
+    },
+    {
+      "k": "fresh /demo -> status",
+      "v": "200"
+    },
+    {
+      "k": "fresh /demo -> h1",
+      "v": "Write an announcement. Hear it. Share it."
+    },
+    {
+      "k": "fresh /demo -> sections on page",
+      "v": []
+    },
+    {
+      "k": "fresh CTA element on /",
+      "v": "link"
+    },
+    {
+      "k": "fresh after clicking Create an announcement",
+      "v": "/demo"
+    },
+    {
+      "k": "fresh ...heading there",
+      "v": "Write an announcement. Hear it. Share it."
+    },
+    {
+      "k": "fresh / nav \"How it works\"",
+      "v": "/#how (section top 189px, h1 \"One announcement. One link. Even when plans chan\")"
+    },
+    {
+      "k": "fresh / nav \"Corrections\"",
+      "v": "/#correct (section top 227px, h1 \"One announcement. One link. Even when plans chan\")"
+    },
+    {
+      "k": "fresh / nav \"Trust\"",
+      "v": "/#trust (section top 333px, h1 \"One announcement. One link. Even when plans chan\")"
+    },
+    {
+      "k": "fresh / nav \"Questions\"",
+      "v": "/#faq (section top 369px, h1 \"One announcement. One link. Even when plans chan\")"
+    },
+    {
+      "k": "fresh / nav \"FAQ\"",
+      "v": "no such link"
+    },
+    {
+      "k": "fresh /demo nav \"How it works\"",
+      "v": "/#how (section top 88px, h1 \"One announcement. One link. Even when plans chan\")"
+    },
+    {
+      "k": "fresh /demo nav \"Corrections\"",
+      "v": "/#correct (section top 88px, h1 \"One announcement. One link. Even when plans chan\")"
+    },
+    {
+      "k": "fresh /demo nav \"Trust\"",
+      "v": "/#trust (section top 88px, h1 \"One announcement. One link. Even when plans chan\")"
+    },
+    {
+      "k": "fresh /demo nav \"Questions\"",
+      "v": "/#faq (section top 88px, h1 \"One announcement. One link. Even when plans chan\")"
+    },
+    {
+      "k": "fresh /demo nav \"FAQ\"",
+      "v": "no such link"
+    },
+    {
+      "k": "guest session created",
+      "v": "201"
+    },
+    {
+      "k": "guest / -> final URL",
+      "v": "/"
+    },
+    {
+      "k": "guest / -> status",
+      "v": "200"
+    },
+    {
+      "k": "guest / -> h1",
+      "v": "One announcement. One link. Even when plans change."
+    },
+    {
+      "k": "guest / -> sections on page",
+      "v": [
+        "how",
+        "correct",
+        "trust",
+        "faq",
+        "problem"
+      ]
+    },
+    {
+      "k": "guest /demo -> final URL",
+      "v": "/demo"
+    },
+    {
+      "k": "guest /demo -> status",
+      "v": "200"
+    },
+    {
+      "k": "guest /demo -> h1",
+      "v": "Write an announcement. Hear it. Share it."
+    },
+    {
+      "k": "guest /demo -> sections on page",
+      "v": []
+    },
+    {
+      "k": "guest CTA element on /",
+      "v": "link"
+    },
+    {
+      "k": "guest after clicking Create an announcement",
+      "v": "/demo"
+    },
+    {
+      "k": "guest ...heading there",
+      "v": "Write an announcement. Hear it. Share it."
+    },
+    {
+      "k": "guest / nav \"How it works\"",
+      "v": "/#how (section top 189px, h1 \"One announcement. One link. Even when plans chan\")"
+    },
+    {
+      "k": "guest / nav \"Corrections\"",
+      "v": "/#correct (section top 227px, h1 \"One announcement. One link. Even when plans chan\")"
+    },
+    {
+      "k": "guest / nav \"Trust\"",
+      "v": "/#trust (section top 333px, h1 \"One announcement. One link. Even when plans chan\")"
+    },
+    {
+      "k": "guest / nav \"Questions\"",
+      "v": "/#faq (section top 369px, h1 \"One announcement. One link. Even when plans chan\")"
+    },
+    {
+      "k": "guest / nav \"FAQ\"",
+      "v": "no such link"
+    },
+    {
+      "k": "guest /demo nav \"How it works\"",
+      "v": "/#how (section top 88px, h1 \"One announcement. One link. Even when plans chan\")"
+    },
+    {
+      "k": "guest /demo nav \"Corrections\"",
+      "v": "/#correct (section top 88px, h1 \"One announcement. One link. Even when plans chan\")"
+    },
+    {
+      "k": "guest /demo nav \"Trust\"",
+      "v": "/#trust (section top 88px, h1 \"One announcement. One link. Even when plans chan\")"
+    },
+    {
+      "k": "guest /demo nav \"Questions\"",
+      "v": "/#faq (section top 88px, h1 \"One announcement. One link. Even when plans chan\")"
+    },
+    {
+      "k": "guest /demo nav \"FAQ\"",
+      "v": "no such link"
+    }
+  ]
+}
