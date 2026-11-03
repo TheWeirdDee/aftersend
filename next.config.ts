@@ -12,6 +12,11 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   serverExternalPackages: ["@electric-sql/pglite", "ws"],
+  // /demo was a second introduction page. Old links still work and land on the one homepage, whose "Create an announcement"
+  // starts the same guest workflow.
+  async redirects() {
+    return [{ source: "/demo", destination: "/", permanent: false }];
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
