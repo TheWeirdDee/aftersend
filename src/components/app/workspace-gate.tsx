@@ -5,7 +5,8 @@ import { useState } from "react";
 import { api, ApiFailure } from "@/lib/client/api";
 import { ArrowRight, Spinner } from "../icons";
 
-export function StartWorkspaceButton({ kind, children, className }: { kind: "workspace" | "demo"; children: React.ReactNode; className: string }) {
+/** Starts a guest session (with a sample announcement to edit) or an empty one, then goes to the editor. */
+export function StartWorkspaceButton({ kind, children, className }: { kind: "workspace" | "guest"; children: React.ReactNode; className: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +24,7 @@ export function StartWorkspaceButton({ kind, children, className }: { kind: "wor
             router.push(redirect);
             router.refresh();
           } catch (e) {
-            setError(e instanceof ApiFailure ? e.message : "Could not start the workspace.");
+            setError(e instanceof ApiFailure ? e.message : "Could not start. Try again.");
             setBusy(false);
           }
         }}
