@@ -139,7 +139,7 @@ export function NoticeEditor(props: EditorProps) {
       const res = await api<{ revisionId: string; version: number }>(`/api/notices/${props.noticeId}/revisions`, {
         method: "POST",
         // The token makes a retried create return this draft instead of starting a second one.
-        body: { title: d.title, text: d.text, voiceId: d.voiceId, updatePreface: d.preface || null, clientToken: clientToken.current },
+        body: { title: d.title, text: d.text, voiceId: d.voiceId, updatePreface: d.preface || null, sourceUrl: d.sourceUrl || null, clientToken: clientToken.current },
       });
       adopt(res.revisionId, res.version);
       await refreshStatus(res.revisionId);
@@ -153,7 +153,7 @@ export function NoticeEditor(props: EditorProps) {
         voiceId: d.voiceId,
         updatePreface: isCorrection ? d.preface || null : null,
         expectedVersion: versionRef.current ?? undefined,
-        ...(props.noticeState === "draft" ? { sourceUrl: d.sourceUrl || null } : {}),
+        sourceUrl: d.sourceUrl || null,
       },
     });
     adopt(id, res.version);
@@ -456,22 +456,21 @@ export function NoticeEditor(props: EditorProps) {
             <FieldProblem id="text-problem" fact={ambiguousBy.text} />
             <p className="field-hint">Listeners hear exactly this text, read aloud after the title.</p>
           </div>
-          {props.noticeState === "draft" ? (
-            <div>
-              <label htmlFor="source" className="field-label">
-                Source link <span className="font-normal text-muted">(optional)</span>
-              </label>
-              <input
-                id="source"
-                type="url"
-                className="input"
-                value={sourceUrl}
-                onChange={(e) => edit({ sourceUrl: e.target.value })}
-                placeholder="https://"
-                disabled={locked}
-              />
-            </div>
-          ) : null}
+          <div>
+            <label htmlFor="source" className="field-label">
+              Source link <span className="font-normal text-muted">(optional)</span>
+            </label>
+            <input
+              id="source"
+              type="url"
+              className="input"
+              value={sourceUrl}
+              onChange={(e) => edit({ sourceUrl: e.target.value })}
+              placeholder="https://"
+              disabled={locked}
+            />
+            {props.noticeState !== "draft" ? <p className="field-hint">A changed link goes live when you publish this correction, not before.</p> : null}
+          </div>
           <FactsPanel text={text} changedValues={changes.map((c) => c.currentValue ?? "")} />
 
           {isCorrection ? (
