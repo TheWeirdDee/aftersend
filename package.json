@@ -23,6 +23,9 @@
     "email:probe": "tsx --conditions=react-server scripts/email-probe.ts",
     "verify:deploy": "tsx scripts/verify-deployment.ts",
     "verify:live": "tsx scripts/live-journey.ts",
+    "verify:live:guest": "node scripts/live-guest.mjs",
+    "demo:record": "node scripts/record-demo.mjs",
+    "secret:scan": "node scripts/secret-scan.mjs",
     "vercel-build": "npm run db:migrate -- --if-configured --production-only && next build"
   },
   "engines": {
