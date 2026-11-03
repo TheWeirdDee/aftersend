@@ -16,6 +16,7 @@
     "tts:probe": "tsx scripts/tts-probe.ts",
     "tts:session-probe": "tsx scripts/tts-session-limit-probe.ts",
     "tts:smoke": "tsx --conditions=react-server scripts/tts-smoke.ts",
+    "samples:record": "tsx --conditions=react-server scripts/make-sample-audio.ts",
     "audio:inspect": "tsx scripts/inspect-audio.ts",
     "check:env": "tsx scripts/check-env.ts",
     "env:sync": "tsx scripts/env-sync.ts",
@@ -25,6 +26,7 @@
     "verify:live": "tsx scripts/live-journey.ts",
     "verify:live:guest": "node scripts/live-guest.mjs",
     "demo:record": "node scripts/record-demo.mjs",
+    "nav:audit": "node scripts/nav-audit.mjs",
     "secret:scan": "node scripts/secret-scan.mjs",
     "vercel-build": "npm run db:migrate -- --if-configured --production-only && next build"
   },
