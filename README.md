@@ -1,6 +1,6 @@
 # AfterSend
 
-**One announcement. One link. Even when plans change.**
+**One announcement link, even when pickup time changes.**
 
 AfterSend turns a school announcement into speech behind one stable link. Write it, hear the spoken version, publish, and share the link. When a detail changes, for example the pickup time, edit the announcement: the new voice is prepared automatically, and once it is approved the link families already have plays the corrected announcement.
 
@@ -10,7 +10,7 @@ AfterSend turns a school announcement into speech behind one stable link. Write 
 
 | | |
 |---|---|
-| Live app | https://aftersend-sigma.vercel.app (try it without an account at `/demo`) |
+| Live app | https://aftersend-sigma.vercel.app (no account needed: press **Create an announcement** on the homepage; the old `/demo` address redirects there) |
 | Demo video | Footage recorded from the deployed site, silent and captioned, 2 min 15 s: `evidence/demo-video/`. Script: [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) |
 | Product spec | [`docs/PRD.md`](docs/PRD.md) |
 | Architecture, lifecycle, cache and withdrawal guarantees | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
@@ -33,7 +33,7 @@ AfterSend is the place you send people to, not the messaging channel. The publis
 ## Core workflow
 
 1. **Write.** Start from a sample or your own words, as a guest (no account) or signed in. Dates, times and phone numbers are picked out; an ambiguous date such as `05/06/26`, or a weekday that does not match its date, stops the voice until you fix it.
-2. **Hear and publish.** The editor saves as you type and prepares the spoken preview by itself when you pause. Play the whole preview, confirm, and publish. The stable link `/n/{token}` goes live.
+2. **Hear and publish.** The editor saves as you type and prepares the spoken preview by itself when you pause. Play the whole preview, confirm, and publish. The stable link `/n/{token}` goes live. The editor will not unlock Publish until the whole preview has played; that is a safeguard in the browser. What the server guarantees is narrower: it publishes one specific saved version whose audio is ready and matches its text, for a signed-in owner who approved that version. It cannot know that anyone listened.
 3. **Correct.** Edit the announcement. The preview is marked out of date at once and a new voice is prepared; nothing changes publicly. Listen, and update. The same link now serves the corrected announcement, marked as corrected.
 4. **Keep it.** A guest session lives in the browser for up to 30 days. Saving the account with an email and a code keeps the announcements and reaches them from any device.
 
@@ -53,7 +53,7 @@ The spoken announcement is the product's output, and the hackathon's sponsor spe
 - Human approval is enforced on the server (`confirmedCriticalFacts`, preview ready) and in the UI (preview must be played first).
 - Listener page: no sign-in, no autoplay, full text always shown, update banner and timestamp in the notice's time zone, live "newer version available" prompt, `noindex`.
 - Withdrawal shows an explicit "withdrawn" page and stops serving audio.
-- Light, dark and system themes, Inter and Inter Tight type, a reduced-motion mode, and full content without JavaScript. The landing page's hero is an interactive, labelled illustration of a 3 PM to 4 PM correction; it makes no API call and plays no audio.
+- Light, dark and system themes, Inter and Inter Tight type, a reduced-motion mode, and full content without JavaScript. There is one public homepage (`/`): hero, problem, the correction example, how it works, trust and limits, FAQ, in one scroll. Its hero pairs a 3 PM to 4 PM before-and-after with two short recordings made with AssemblyAI speech (`public/samples`, `scripts/make-sample-audio.ts`); each plays only when pressed. The step-by-step correction example below it is an illustration, makes no API call and plays no audio. Every "Create an announcement" is one button: a visitor with no session gets a guest workspace and its sample announcement, and a returning guest or signed-in account gets a new announcement in the workspace it already has.
 
 ![Mobile listener](docs/screenshots/listener-mobile.png)
 
