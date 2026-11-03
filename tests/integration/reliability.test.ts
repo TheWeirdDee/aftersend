@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { configureTestEnv } from "../support/setup-integration";
 
 configureTestEnv();
@@ -537,6 +537,28 @@ describe("staging cleanup races", () => {
     expect(await objectStore().get(asset.objectKey)).toBeNull();
   });
 
+  it("retries an expired preview whose bytes could not be deleted, instead of skipping it forever", async () => {
+    const owner = await makeUser();
+    const { revisionId } = await svc.createNotice(owner, { title: "T", text: ORIGINAL, sourceUrl: null, voiceId: "test-tone" });
+    await svc.generatePreview(owner, revisionId);
+    const db = await getDb();
+    const asset = (await db.select().from(schema.audioAssets).where(eq(schema.audioAssets.id, (await revision(revisionId)).audioAssetId!)))[0]!;
+    await backdate(asset.id, 25 * HOUR);
+
+    // The storage service fails once.
+    const spy = vi.spyOn(objectStore(), "delete").mockRejectedValueOnce(new Error("storage unavailable"));
+    expect(await cleanup.cleanupStagingAudio()).toEqual({ deleted: 0, failed: 1 });
+    expect(await objectStore().get(asset.objectKey)).not.toBeNull();
+    const still = (await db.select().from(schema.audioAssets).where(eq(schema.audioAssets.id, asset.id)))[0]!;
+    expect(still.deletedAt).toBeNull(); // not marked, so the next run picks it up
+
+    // The next run, with storage back, finishes the job.
+    expect(await cleanup.cleanupStagingAudio()).toEqual({ deleted: 1, failed: 0 });
+    expect(await objectStore().get(asset.objectKey)).toBeNull();
+    expect((await db.select().from(schema.audioAssets).where(eq(schema.audioAssets.id, asset.id)))[0]!.deletedAt).not.toBeNull();
+    spy.mockRestore();
+  });
+
   it("does not clear a fresh preview that replaced the expired one while cleanup was running", async () => {
     const owner = await makeUser();
     const { revisionId } = await svc.createNotice(owner, { title: "T", text: ORIGINAL, sourceUrl: null, voiceId: "test-tone" });
@@ -605,6 +627,25 @@ describe("published object reconciliation", () => {
     expect(m?.state === "published" && m.revisionId).toBe(a);
     const ready = rows.filter((r) => r.contentReady);
     for (const r of ready) expect(await objectStore().get(r.objectKey)).not.toBeNull();
+  });
+
+  it("retries an abandoned published copy whose bytes could not be deleted", async () => {
+    const owner = await makeUser();
+    const { noticeId } = await publishNew(owner);
+    const a = await previewedDraft(owner, noticeId, CORRECTED);
+    const b = await previewedDraft(owner, noticeId, CORRECTED.replace("4:00", "5:00"));
+    await svc.approveRevision(owner, a);
+    await expectCode(svc.approveRevision(owner, b), "conflict");
+    const db = await getDb();
+    const loser = (await db.select().from(schema.audioAssets).where(and(eq(schema.audioAssets.revisionId, b), eq(schema.audioAssets.stage, "published"))))[0]!;
+    await db.update(schema.audioAssets).set({ createdAt: new Date(Date.now() - 2 * HOUR) }).where(eq(schema.audioAssets.id, loser.id));
+
+    const spy = vi.spyOn(objectStore(), "delete").mockRejectedValueOnce(new Error("storage unavailable"));
+    expect(await cleanup.cleanupAbandonedPublished()).toEqual({ deleted: 0, failed: 1 });
+    expect(await objectStore().get(loser.objectKey)).not.toBeNull();
+    expect(await cleanup.cleanupAbandonedPublished()).toEqual({ deleted: 1, failed: 0 });
+    expect(await objectStore().get(loser.objectKey)).toBeNull();
+    spy.mockRestore();
   });
 
   it("never deletes bytes that a winning approval of the same revision shares", async () => {
