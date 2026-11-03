@@ -39,7 +39,9 @@ test("editor, preview, notice detail, listener and withdrawn pages have no detec
   await expect(page.locator("#title-problem")).toBeVisible();
   await scan(page, "editor (field problem shown)");
 
-  page.once("dialog", (d) => d.accept());
+  // Two prompts can appear here: the editor's "unsaved changes" prompt on leaving (the title above is not saveable), and the
+  // withdraw confirmation. Both are accepted; a one-shot handler would be used up by whichever comes first.
+  page.on("dialog", (d) => void d.accept());
   await page.goto(page.url().replace(/\/edit$/, ""));
   await page.getByRole("button", { name: "Withdraw announcement" }).click();
   await expect(page.getByText(/^Withdrawn /)).toBeVisible();
