@@ -20,7 +20,7 @@ describe("detectCriticalFacts", () => {
   });
 
   it("finds written dates with weekdays", () => {
-    expect(values("Classes end early on Friday, 24 October 2026.")).toEqual([["date", "Friday, 24 October 2026", false]]);
+    expect(values("Classes end early on Friday, 23 October 2026.")).toEqual([["date", "Friday, 23 October 2026", false]]);
     expect(values("Resumption: Oct 27th")).toEqual([["date", "Oct 27th", false]]);
   });
 
@@ -83,7 +83,7 @@ describe("calendar validation", () => {
     expect(problem("Meet on 29 February")).toBeUndefined();
     expect(problem("Meet on 29 February 2028")).toBeUndefined();
     expect(problem("Meet on 31 October 2026")).toBeUndefined();
-    expect(problem("Friday, 24 October 2026")).toBeUndefined();
+    expect(problem("Friday, 23 October 2026")).toBeUndefined();
   });
 });
 
@@ -106,5 +106,25 @@ describe("findAmbiguousSpokenFact", () => {
     expect(findAmbiguousSpokenFact({ title: "Trip", text: "Fine.", updatePreface: "Moved to 31/02/2026" })).toMatchObject({ field: "updatePreface" });
     expect(findAmbiguousSpokenFact({ title: "Trip", text: "Leaves 05/06/26." })).toMatchObject({ field: "text" });
     expect(findAmbiguousSpokenFact({ title: "Trip", text: "Leaves 5 June 2026.", updatePreface: null })).toBeNull();
+  });
+});
+
+describe("weekday and date that disagree", () => {
+  const problem = (t: string) => detectCriticalFacts(t).find((f) => f.ambiguous);
+
+  it("flags the day name when it does not match the written date", () => {
+    // 24 October 2026 is a Saturday: the sample notice once said Friday.
+    expect(problem("Classes end early on Friday, 24 October 2026.")).toMatchObject({
+      note: "Friday is not 24 October 2026: that date is a Saturday. Fix the day or the date.",
+    });
+    expect(problem("Meet Mon 3 November 2026")).toMatchObject({ note: expect.stringContaining("that date is a Tuesday") });
+  });
+
+  it("accepts matching names in any form, and leaves a date without a year alone", () => {
+    expect(problem("Saturday, 24 October 2026")).toBeUndefined();
+    expect(problem("Sat 24th October 2026")).toBeUndefined();
+    expect(problem("Tuesday, November 3, 2026")).toBeUndefined();
+    expect(problem("Friday, 24 October")).toBeUndefined(); // no year: cannot be checked
+    expect(problem("Tuesday 29 February 2028")).toBeUndefined(); // a real leap day
   });
 });
