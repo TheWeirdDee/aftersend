@@ -1,17 +1,17 @@
 # AfterSend
 
-**A spoken notice you can correct after the link is shared.**
+**One announcement. One link. Even when plans change.**
 
-AfterSend turns a school notice into a spoken announcement behind one stable link. When a detail changes, for example the pickup time, the publisher edits the text, listens to newly generated audio, and approves it. The link families already have then plays the corrected notice and shows the corrected text.
+AfterSend turns a school announcement into speech behind one stable link. Write it, hear the spoken version, publish, and share the link. When a detail changes, for example the pickup time, edit the announcement: the new voice is prepared automatically, and once it is approved the link families already have plays the corrected announcement.
 
 ![AfterSend landing page](docs/screenshots/landing.png)
 
-> **Status, 3 Nov 2026.** Deployed to Vercel production at https://aftersend-sigma.vercel.app with real Supabase (database and a private audio bucket), Resend (verified sender domain) and AssemblyAI. The deployment checks passed 23 of 23 on 30 Oct 2026 (`evidence/verify-deploy-2026-10-30.txt`); that is a historical result, not a statement about the site right now. Live AssemblyAI synthesis was verified for both voices, repeats and a 2 074-character notice (`RESULTS.md`). **Not yet verified together on production:** the full publish, correct (3 PM to 4 PM), withdraw and recover journey (the one attempt stopped when no sign-in code was supplied, `evidence/live-journey-2026-10-30T16-37-26-196Z.json`), direct access to superseded and withdrawn audio in storage, and the two-account boundary. **Nobody has listened to the recordings** (`docs/LISTENING_REVIEW.md` is unsigned), and the deletion of the earlier exposed AssemblyAI key is unconfirmed. Fixes made after that deployment (storage deadlines, a source link that can be corrected, demo-workspace cleanup) are committed locally but **not deployed or pushed**. Deployment steps and the verification scripts: [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md). Design and guarantees: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Audit status: [`docs/BUILD_AUDIT.md`](docs/BUILD_AUDIT.md). See [Known limitations](#known-limitations).
+> **Status, 3 Nov 2026 (commit `142cd42` and the evidence commits after it).** Deployed to https://aftersend-sigma.vercel.app from `main`; CI (`CI / verify`) is green on that code. What is **confirmed**: on the deployed site, `verify:deploy` passed 23 of 23 and migration `0003` is applied; a live guest journey with real AssemblyAI speech passed 7 of 7 (guest session, speech, publish, correct 3 PM to 4 PM at the same link, superseded audio refused, withdraw; `evidence/live-guest-2026-11-03T09-56-22-363Z.json`); the full browser journey was driven on the deployed site while recording the demo footage; locally, 309 of 309 unit and integration tests and 55 of 55 browser tests pass (the CI run also passed WebKit playback on Linux). **Not confirmed:** nobody has listened to the real speech (`docs/LISTENING_REVIEW.md` is unsigned); Safari itself and Firefox on a machine with a working sound device were not tested in CI (Firefox passed locally earlier, then this machine's audio output began failing); the sign-in email, email recovery and the two-account boundary were **not** exercised on the deployed site in this pass because they need a code from a real inbox (they are covered by tests, and by the 30 Oct run up to the point where no code was supplied); the demo video has no narration and does not show saving the account; the hackathon's required video length is unconfirmed. Details: [`docs/DEFECT_LOG.md`](docs/DEFECT_LOG.md), [`RESULTS.md`](RESULTS.md), [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md), [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). See [Known limitations](#known-limitations).
 
 | | |
 |---|---|
-| Live app | https://aftersend-sigma.vercel.app (deployed 30 Oct 2026; see the status note above for what is and is not verified) |
-| Demo video | Not recorded yet. Script and shot list: [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) |
+| Live app | https://aftersend-sigma.vercel.app (try it without an account at `/demo`) |
+| Demo video | Footage recorded from the deployed site, silent and captioned, 2 min 15 s: `evidence/demo-video/`. Script: [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) |
 | Product spec | [`docs/PRD.md`](docs/PRD.md) |
 | Architecture, lifecycle, cache and withdrawal guarantees | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
 | Measured results | [`RESULTS.md`](RESULTS.md) |
@@ -32,9 +32,10 @@ AfterSend is the place you send people to, not the messaging channel. The publis
 
 ## Core workflow
 
-1. **Write.** Paste the exact notice. Dates, times and phone numbers are detected, and ambiguous numeric dates such as `05/06/26` block audio generation.
-2. **Approve.** Generate the spoken preview, play it, confirm the critical facts, and approve. The stable link `/n/{token}` goes live.
-3. **Correct.** Edit the notice and review a word-level diff (`3:00 PM` → `4:00 PM`). Optionally accept a suggested update note quoted from your own text. Generate new audio, listen, and approve. The same link now serves version 2.
+1. **Write.** Start from a sample or your own words, as a guest (no account) or signed in. Dates, times and phone numbers are picked out; an ambiguous date such as `05/06/26`, or a weekday that does not match its date, stops the voice until you fix it.
+2. **Hear and publish.** The editor saves as you type and prepares the spoken preview by itself when you pause. Play the whole preview, confirm, and publish. The stable link `/n/{token}` goes live.
+3. **Correct.** Edit the announcement. The preview is marked out of date at once and a new voice is prepared; nothing changes publicly. Listen, and update. The same link now serves the corrected announcement, marked as corrected.
+4. **Keep it.** A guest session lives in the browser for up to 30 days. Saving the account with an email and a code keeps the announcements and reaches them from any device.
 
 ![Correction editor](docs/screenshots/editor-correction.png)
 
@@ -48,15 +49,15 @@ The spoken announcement is the product's output, and the hackathon's sponsor spe
 - Immutable revisions. Each approved version keeps its exact text, speech script, voice/model ids, audio digest (SHA-256) and timestamps.
 - Atomic promotion. A row lock plus compare-and-swap on `current_revision_id` means a stale draft or a competing approval fails with a conflict instead of overwriting.
 - Failure safety. Timeouts, provider errors, malformed audio or a text edit during synthesis never change what listeners get.
-- Idempotent synthesis. A repeated or concurrent "Generate" for the same text, voice and model makes one provider call.
+- Automatic speech with bounded cost. Edits are debounced, one speech request runs at a time, a newer edit always wins on the server, an older result can never attach, and guests have hourly and daily limits.
 - Human approval is enforced on the server (`confirmedCriticalFacts`, preview ready) and in the UI (preview must be played first).
 - Listener page: no sign-in, no autoplay, full text always shown, update banner and timestamp in the notice's time zone, live "newer version available" prompt, `noindex`.
 - Withdrawal shows an explicit "withdrawn" page and stops serving audio.
-- Dark, typography-led UI with GSAP and Motion animation, a reduced-motion mode, and full content without JavaScript.
+- Light, dark and system themes, Inter and Inter Tight type, a reduced-motion mode, and full content without JavaScript. The landing page's hero is an interactive, labelled illustration of a 3 PM to 4 PM correction; it makes no API call and plays no audio.
 
 ![Mobile listener](docs/screenshots/listener-mobile.png)
 
-*Screenshots come from a local production build using the **test-tone provider**. The audio there is a labelled tone, not speech, and the UI marks it "Test audio · not AssemblyAI".*
+*Screenshots come from a local production build using the **test-tone provider** (the live site uses AssemblyAI). The audio there is a labelled tone, not speech, and the UI marks it "Test audio · not AssemblyAI".*
 
 ## Architecture
 
@@ -222,8 +223,9 @@ Only measured numbers are listed. Details are in [`RESULTS.md`](RESULTS.md).
 
 ## Known limitations
 
-- **Speech quality is unreviewed.** The integration works against the real service, but no person has listened to the output, `aai-kyla`, the EU endpoint and the provider's limits are untested, and the key used for the live run was exposed and must be rotated.
-- **Recovery depends on the mailbox.** A workspace connected to an email survives cleared cookies, a new browser and a lapsed session. A workspace started *without* email is still only a cookie until it is connected (the header offers **Save to email**). Losing the mailbox as well needs an operator. There is no second factor. Details and residual risks: `docs/ARCHITECTURE.md` section 8A.
+- **Speech quality is unreviewed.** The integration works against the real service (re-checked on 3 Nov), but no person has listened to the output; `aai-kyla`, the EU endpoint and the provider's limits are untested. An AssemblyAI key that was exposed earlier must be deleted in their dashboard; that has not been confirmed.
+- **Audio output devices can fail.** A browser can fail to open a machine's audio output mid-playback (seen on the development machine as `AUDIO_RENDERER_ERROR` in Chromium and `OnMediaSinkAudioError` in Firefox). The player reloads and starts again, then offers Try again, and the written announcement is always on the page; it cannot repair a broken device.
+- **Recovery depends on the mailbox.** A workspace connected to an email survives cleared cookies, a new browser and a lapsed session. A guest session is only a browser cookie (30 days) until it is saved to an email (the header offers **Save your account**). Losing the mailbox as well needs an operator. There is no second factor. Details and residual risks: `docs/ARCHITECTURE.md` section 8A.
 - **On the free AssemblyAI plan, the whole account may open only 5 speech sessions a minute** (confirmed live). Every generation, retry and regeneration uses one; beyond that users are told how many seconds to wait. A paid plan raises it.
 - Withdrawal stops every application route immediately, but cannot recall audio a listener already downloaded or buffered.
 - Synthesis runs inside the API request under a 50 s deadline. A very long notice can fail with "ran out of time" rather than hang; a background worker would remove that limit.
