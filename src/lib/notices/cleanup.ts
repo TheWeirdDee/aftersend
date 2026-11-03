@@ -1,7 +1,7 @@
 import "server-only";
-import { and, eq, isNull, lt, ne, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, lt, ne, notExists, sql } from "drizzle-orm";
 import { getDb } from "../db/client";
-import { audioAssets, noticeRevisions, rateLimits, sessions } from "../db/schema";
+import { audioAssets, noticeRevisions, notices, rateLimits, sessions, users } from "../db/schema";
 import { purgeChallenges } from "../auth/email-auth";
 import { objectStore } from "../storage/audio";
 
@@ -9,6 +9,10 @@ const STAGING_TTL_MS = 24 * 3600_000;
 /** A published copy that never became ready (a lost approval race, a crash) is kept this long, then removed. */
 const PENDING_PUBLISHED_GRACE_MS = 3600_000;
 const RATE_LIMIT_RETENTION_MS = 24 * 3600_000;
+/** A demo workspace is kept at least this long after it was created, and always while a session of it is still alive. */
+const DEMO_MIN_AGE_MS = 7 * 24 * 3600_000;
+/** How many abandoned demo workspaces one run removes, so a backlog cannot outlast the cron function. */
+const DEMO_BATCH = 25;
 
 /** Removes the stored bytes unless another live asset row still points at the same object. */
 async function deleteObjectIfUnreferenced(assetId: string, objectKey: string) {
@@ -101,11 +105,63 @@ export async function cleanupExpiredRecords(now = new Date()) {
   return { sessions: sessionsRemoved.length, rateLimits: limitsRemoved.length };
 }
 
+/**
+ * Removes demo workspaces nobody can reach any more, with everything in them: notices, revisions, audio rows and the
+ * stored bytes (staging and published). A demo workspace is anonymous: its only key is a session cookie, which lasts 30
+ * days. Once that has expired, and the workspace is at least a week old, no one can open it again, and its public links
+ * go with it. A workspace that has an email, or that is not a demo, is never touched.
+ *
+ * Bytes go first. If a storage delete fails, that workspace is left whole for the next run rather than orphaning
+ * objects that nothing would ever point to.
+ */
+export async function cleanupAbandonedDemos(now = new Date(), opts: { limit?: number } = {}) {
+  const db = await getDb();
+  const cutoff = new Date(now.getTime() - DEMO_MIN_AGE_MS);
+  const unreachable = () =>
+    and(
+      eq(users.kind, "demo"),
+      isNull(users.email),
+      lt(users.createdAt, cutoff),
+      notExists(db.select({ one: sql`1` }).from(sessions).where(and(eq(sessions.userId, users.id), gt(sessions.expiresAt, now)))),
+    );
+  const candidates = await db.select({ id: users.id }).from(users).where(unreachable()).limit(opts.limit ?? DEMO_BATCH);
+
+  const result = { workspaces: 0, objects: 0, failed: 0 };
+  for (const { id } of candidates) {
+    const keys = (
+      await db
+        .select({ key: audioAssets.objectKey })
+        .from(audioAssets)
+        .innerJoin(noticeRevisions, eq(noticeRevisions.id, audioAssets.revisionId))
+        .innerJoin(notices, eq(notices.id, noticeRevisions.noticeId))
+        .where(eq(notices.ownerId, id))
+    ).map((r) => r.key);
+    const distinct = [...new Set(keys)];
+    try {
+      for (const key of distinct) await objectStore().delete(key);
+    } catch {
+      result.failed++;
+      continue;
+    }
+    // Check again at the moment of deletion: only a workspace that is still unreachable and still a demo is removed.
+    const gone = await db
+      .delete(users)
+      .where(and(eq(users.id, id), unreachable()))
+      .returning({ id: users.id });
+    if (gone.length > 0) {
+      result.workspaces++;
+      result.objects += distinct.length;
+    }
+  }
+  return result;
+}
+
 export async function runCleanup(now = new Date()) {
   return {
     staging: await cleanupStagingAudio(now),
     abandonedPublished: await cleanupAbandonedPublished(now),
     expired: await cleanupExpiredRecords(now),
+    demos: await cleanupAbandonedDemos(now),
     challenges: await purgeChallenges(now),
   };
 }
