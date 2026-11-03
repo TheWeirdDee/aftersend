@@ -1,0 +1,62 @@
+{
+  "startedAt": "2026-11-03T09:18:01.569Z",
+  "endpoint": "wss://tts.us.assemblyai.com/v1/ws",
+  "inputs": [
+    {
+      "label": "original",
+      "text": "Early pickup on Friday. Dear parents and guardians, Classes will end early on Friday, 13 November 2026 for a staff training day. Pickup is at three p.m. at the main gate. Please bring your pickup card. Thank you for your support."
+    },
+    {
+      "label": "corrected",
+      "text": "Early pickup on Friday. Update: Pickup is at four p.m. at the main gate. Dear parents and guardians, Classes will end early on Friday, 13 November 2026 for a staff training day. Pickup is at four p.m. at the main gate. Please bring your pickup card. Thank you for your support."
+    }
+  ],
+  "results": [
+    {
+      "voice": "aai-jane",
+      "run": 1,
+      "label": "original",
+      "ok": true,
+      "file": "evidence/raw/audio/aai-jane-original-run1-c419e481.wav",
+      "characters": 229,
+      "bytes": 760364,
+      "decodedDurationMs": 15840,
+      "providerReportedDurationMs": 15840,
+      "durationDeltaMs": 0,
+      "timeToFirstAudioMs": 1411,
+      "waitedForRateLimitSec": 0,
+      "totalMs": 3123,
+      "providerRequestId": "1f0a1fe7-dabe-4b15-a030-77100ac50372",
+      "model": "assemblyai-tts-1",
+      "sha256": "c419e48114236ad69c7f94009e20d6f6cb7bdaeb40c37da2e45ec808aa3d3cd6"
+    },
+    {
+      "voice": "aai-jane",
+      "run": 1,
+      "label": "corrected",
+      "ok": true,
+      "file": "evidence/raw/audio/aai-jane-corrected-run1-c23eadc2.wav",
+      "characters": 277,
+      "bytes": 913964,
+      "decodedDurationMs": 19040,
+      "providerReportedDurationMs": 19040,
+      "durationDeltaMs": 0,
+      "timeToFirstAudioMs": 924,
+      "waitedForRateLimitSec": 0,
+      "totalMs": 2629,
+      "providerRequestId": "aa271a9c-3a49-458e-a52a-014428963827",
+      "model": "assemblyai-tts-1",
+      "sha256": "c23eadc2a2d3dfda55a230280c56b488b272a2d4602aae4b6d568bb8c0175100"
+    }
+  ],
+  "probes": [],
+  "summary": {
+    "requests": 2,
+    "succeeded": 2,
+    "failed": 0,
+    "medianTotalMs": 3123,
+    "medianTimeToFirstAudioMs": 1411,
+    "maxAbsDurationDeltaMs": 0,
+    "humanListeningReview": "NOT DONE. Play every file and complete docs/LISTENING_REVIEW.md."
+  }
+}
