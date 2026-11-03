@@ -33,12 +33,15 @@ const { resetEnvCache } = await import("@/lib/env");
 beforeAll(async () => {
   pg = await PGlite.create();
   const port = await freePort();
+  // One connection at a time: the default. A second connection is refused, which the Linux CI runner surfaced as ECONNRESET.
   server = new PGLiteSocketServer({ db: pg, port, host: "127.0.0.1" });
   await server.start();
   const url = `postgres://postgres:postgres@127.0.0.1:${port}/postgres`;
 
-  // Same function as scripts/migrate.ts, run twice at once the way two simultaneous builds would.
-  await Promise.all([applyMigrations(url), applyMigrations(url)]);
+  // Same function as scripts/migrate.ts, run twice in a row. PGlite is a single session, so an advisory lock cannot serialise two
+  // migrators here; the concurrent case runs against a real Postgres in real-postgres-migrations.test.ts.
+  await applyMigrations(url);
+  await applyMigrations(url);
 
   process.env.DATABASE_URL = url;
   process.env.DATABASE_POOL_MAX = "1";
@@ -64,7 +67,7 @@ describe("service over the Postgres wire protocol", () => {
     }
   });
 
-  it("applied each migration exactly once even though two migrators started together, and re-running changes nothing", async () => {
+  it("applied each migration exactly once, and re-running changes nothing", async () => {
     const { getDb } = await import("@/lib/db/client");
     const { sql } = await import("drizzle-orm");
     const db = await getDb();
