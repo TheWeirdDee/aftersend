@@ -2,6 +2,29 @@
 
 This is a source audit against `docs/PRD.md`, the root PRD supplied in the workspace, implementation, tests, deployment files and reachable Git history. Findings below distinguish defects from incomplete work and optional scope. Runtime checks could not be completed: dependencies were absent and installation did not complete during this audit. The older test and Lighthouse results are historical evidence, not a fresh verification.
 
+## Current status, 3 November 2026
+
+This section replaces the status of everything below. The numbered list that follows is the original 30 October audit, kept unchanged as history; its blockers were resolved in the passes that follow it, and a later review found five more items, listed here.
+
+| Item | Status now |
+|---|---|
+| Original findings 1 to 17 | **Resolved** except the three caveats in the next rows. Each has a regression test (see the second pass table) |
+| #1 real speech | Verified live for both voices, repeats and a long notice. **Pronunciation not reviewed: nobody has listened** |
+| #9 listening gate | Still an attestation (90 % of the preview played), not proof of listening |
+| #10 place detection | Absent by decision; the interface asks for a manual check |
+| Review finding: storage calls had no deadline | **Fixed.** Every storage request has a hard deadline, clamped to the time left in a generate request; timeouts fail the attempt cleanly and are recorded (`storage-deadlines.test.ts`, `storage-deadline.test.ts`) |
+| Review finding: readiness probes shared one object | **Fixed.** Each probe uses its own random key and cleans up after itself |
+| Review finding: the live journey cascaded after a failed prerequisite | **Fixed.** A step whose prerequisite did not pass is recorded as skipped with the reason; the report separates failed from skipped (`journey-needs.test.ts`) |
+| Review finding: a published notice's source link could not be corrected | **Fixed.** The link is stored per revision and goes live with the revision (migration `0003`, backfilled; `source-link.test.ts`, including the migration run over old-shape data) |
+| Review finding: abandoned demo workspaces were never removed | **Fixed.** Removed with their audio once unreachable (`demo-cleanup.test.ts`) |
+| Production deployment | Deployed 30 Oct (23 of 23 checks). The fixes above are **committed locally, not deployed**; migration `0003` runs in the next production build |
+| Full journey on production (publish, correct, withdraw, recover) | **Not verified.** The one attempt stopped when no sign-in code was supplied |
+| Direct storage access to superseded and withdrawn audio | **Not verified** (needs a real published notice; the journey checks it) |
+| Two-account boundary on production | **Not verified** |
+| Migration lock under concurrent builds | **Not verified** |
+| Exposed AssemblyAI key deleted | **Unconfirmed** |
+| Demo video | **Not recorded** |
+
 ## Release blockers and high-priority defects
 
 1. **Real speech integration is unfinished.** `src/lib/speech/assemblyai-protocol.ts:19` fixes `PROTOCOL_VERIFIED` to false and line 53 exports a null protocol. Adding a key alone cannot enable speech. Request frames, audio parsing, completion, auth format and the verified voice catalogue still need implementation and genuine provider smoke tests. This blocks the central P0 product promise, not just an enhancement.
