@@ -87,7 +87,8 @@ export async function requestCode(input: { email: string; linkUserId: string | n
   let noticeCount = 0;
   if (input.linkUserId) {
     link = (await db.select().from(users).where(eq(users.id, input.linkUserId)).limit(1))[0] ?? null;
-    if (link && (link.kind !== "workspace" || link.email)) link = null;
+    // A guest (no email yet) is exactly who this is for: saving the guest session to an email is how a guest keeps their announcements.
+    if (link && link.email) link = null;
     if (link) noticeCount = (await db.select({ id: notices.id }).from(notices).where(eq(notices.ownerId, link.id))).length;
   }
 
@@ -113,8 +114,8 @@ export async function requestCode(input: { email: string; linkUserId: string | n
     .where(and(eq(authChallenges.email, email), isNull(authChallenges.consumedAt), ne(authChallenges.id, id)));
 
   const purpose = link
-    ? `Entering it will connect this email to the AfterSend workspace you have open${noticeCount ? ` (${noticeCount} notice${noticeCount === 1 ? "" : "s"})` : ""}, so you can reach it from any device.`
-    : "Entering it will sign you in to your AfterSend workspace, or create one if this is your first time.";
+    ? `Entering it will save the announcements you have open${noticeCount ? ` (${noticeCount})` : ""} to this email, so you can reach them from any device.`
+    : "Entering it will sign you in to your AfterSend account, or create one if this is your first time.";
   let emailId: string | null = null;
   try {
     ({ id: emailId } = await sendEmail({
@@ -201,7 +202,7 @@ async function resolveAccount(email: string, linkUserId: string | null): Promise
   const findExisting = async () => (await db.select().from(users).where(eq(users.email, email)).limit(1))[0];
 
   const link = linkUserId ? (await db.select().from(users).where(eq(users.id, linkUserId)).limit(1))[0] : undefined;
-  const linkable = link && link.kind === "workspace" && !link.email ? link : undefined;
+  const linkable = link && !link.email ? link : undefined;
 
   const existing = await findExisting();
   if (existing) {
@@ -219,7 +220,7 @@ async function resolveAccount(email: string, linkUserId: string | null): Promise
 
   try {
     if (linkable) {
-      const done = await db.update(users).set({ email, emailVerifiedAt: now }).where(and(eq(users.id, linkable.id), isNull(users.email))).returning({ id: users.id });
+      const done = await db.update(users).set({ email, emailVerifiedAt: now, kind: "workspace", displayName: "Your account" }).where(and(eq(users.id, linkable.id), isNull(users.email))).returning({ id: users.id });
       if (done.length > 0) return { userId: linkable.id, created: false, linked: true, merged: 0 };
     }
     const id = newId("usr");
