@@ -40,9 +40,9 @@ export function UpdateWatcher({ token, revisionId }: { token: string; revisionId
 
   if (!newer && !withdrawn) return null;
   return (
-    <div role="status" className="fixed inset-x-3 bottom-3 z-50 mx-auto flex max-w-[640px] flex-col gap-3 rounded-2xl border border-signal/40 bg-surface p-4 shadow-2xl sm:flex-row sm:items-center sm:justify-between">
+    <div role="status" className="fixed inset-x-3 bottom-3 z-50 mx-auto flex max-w-[640px] flex-col gap-3 rounded-2xl border border-line-strong bg-surface p-4 shadow-2xl sm:flex-row sm:items-center sm:justify-between">
       <p className="text-[15px] leading-6">
-        {withdrawn ? "The publisher has withdrawn this notice." : "This notice was just updated. Reload to read and hear the latest version."}
+        {withdrawn ? "The publisher has withdrawn this announcement." : "This announcement was just updated. Reload to read and hear the latest version."}
       </p>
       <button type="button" className="btn-primary btn-sm shrink-0" onClick={() => window.location.reload()}>
         Reload
