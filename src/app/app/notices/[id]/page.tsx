@@ -9,6 +9,7 @@ import { formatDuration, formatStamp } from "@/lib/format";
 import { AppHeader } from "@/components/app/app-header";
 import { AudioPlayer } from "@/components/audio-player";
 import { CopyButton } from "@/components/app/copy-button";
+import { ShareLink } from "@/components/app/share-link";
 import { NoticeStatePill, RevisionStatePill, TestAudioBadge } from "@/components/app/status-pill";
 import { WithdrawButton } from "@/components/app/withdraw-button";
 import { Check, External, Pencil } from "@/components/icons";
@@ -51,11 +52,11 @@ export default async function NoticePage({
           <div role="status" className="mt-6 flex items-start gap-3 rounded-2xl border border-signal/40 bg-signal/[0.07] p-4 sm:p-5">
             <Check className="mt-0.5 size-5 shrink-0 text-signal" />
             <div>
-              <p className="font-medium">{Number(published) > 1 ? "Your update is live." : "Your announcement is live."}</p>
+              <p className="font-medium">{Number(published) > 1 ? "Updated — the same link now plays your correction." : "Published — share this link with families"}</p>
               <p className="mt-1 text-[14.5px] text-muted">
                 {Number(published) > 1
                   ? "The link you already shared now plays the updated announcement. A listener page that is already open will offer the update."
-                  : "Copy the link below and share it wherever you share announcements."}
+                  : "Anyone with the link can read or listen without signing in. You choose where to send it; publishing does not send messages to families."}
               </p>
             </div>
           </div>
@@ -87,13 +88,14 @@ export default async function NoticePage({
             <div className="flex gap-2">
               <CopyButton value={url} />
               <a href={`/n/${notice.publicToken}`} target="_blank" rel="noopener" className="btn-secondary btn-sm">
-                <External /> Open
+                <External /> Open listener page
               </a>
             </div>
           </div>
           <p className="mt-3 text-[13px] leading-5 text-faint">
             Share this link, not a downloaded audio file. A downloaded file never updates.
           </p>
+          {notice.state === "published" ? <ShareLink url={url} title={notice.title} /> : null}
           {user.kind === "demo" && !user.email ? (
             <p className="mt-3 rounded-lg border border-warn/40 bg-warn/[0.08] px-3.5 py-2.5 text-[13.5px] leading-5 text-fg" data-testid="guest-link-lifetime">
               <strong className="font-medium">This link belongs to a guest session.</strong> The session stays with this browser for up to 30 days. When it
