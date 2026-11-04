@@ -15,7 +15,7 @@ const seconds = (file: string) => Math.round((samples.clips.find((c) => c.file =
  */
 function Section({ id, eyebrow, title, children, tint = false }: { id: string; eyebrow: string; title: React.ReactNode; children: React.ReactNode; tint?: boolean }) {
   return (
-    <section id={id} className={`border-t border-line px-4 py-16 sm:px-6 sm:py-24 ${tint ? "bg-ink-2" : ""}`}>
+    <section id={id} className={`border-t border-line px-5 py-16 sm:px-8 sm:py-24 ${tint ? "bg-ink-2" : ""}`}>
       <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
         <div>
           <p className="eyebrow">{eyebrow}</p>
@@ -92,12 +92,12 @@ export default function Home() {
       <SiteHeader />
       <main id="main">
         {/* Hero */}
-        <section id="top" className="px-4 pt-10 pb-16 sm:px-6 sm:pt-16 sm:pb-24">
+        <section id="top" className="px-5 pt-10 pb-16 sm:px-8 sm:pt-16 sm:pb-24">
           <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] items-start gap-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-14">
             <div>
               <p className="eyebrow">Spoken announcements for schools</p>
               <h1 className="mt-4 text-[clamp(2.3rem,5.4vw,4.4rem)] leading-[1.02] font-semibold tracking-[-0.045em] text-balance">
-                One announcement link, even when <span className="mark-lime">pickup time changes.</span>
+                One announcement link, even when pickup time changes.
               </h1>
               <p className="mt-6 max-w-xl text-[18px] leading-[1.55] text-muted sm:text-[19px]">
                 AfterSend helps school staff turn a notice into audio, share it with families, and update the same link when details change.
@@ -207,10 +207,10 @@ export default function Home() {
           </div>
         </Section>
 
-        <section id="start" className="border-t border-line px-4 py-16 sm:px-6 sm:py-24">
+        <section id="start" className="border-t border-line px-5 py-16 sm:px-8 sm:py-24">
           <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] items-center gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
             <h2 className="text-[clamp(1.8rem,3.6vw,2.7rem)] leading-[1.06] font-semibold tracking-[-0.04em] text-balance">
-              Write it once. Fix it any time. <span className="mark-lime">Keep the link.</span>
+              Write it once. Fix it any time. Keep the link.
             </h2>
             <div>
               <p className="max-w-xl text-[17px] leading-[1.6] text-muted">
