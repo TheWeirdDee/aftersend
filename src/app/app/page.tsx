@@ -6,6 +6,7 @@ import { AppHeader } from "@/components/app/app-header";
 import { StartWorkspaceButton } from "@/components/app/workspace-gate";
 import { NoticeStatePill } from "@/components/app/status-pill";
 import { CopyButton } from "@/components/app/copy-button";
+import { DemoBadge } from "@/components/app/demo-badge";
 import { External, Pencil, Plus } from "@/components/icons";
 import { formatStamp } from "@/lib/format";
 import { appOrigin } from "@/lib/origin";
@@ -84,6 +85,7 @@ export default async function AnnouncementsPage() {
                     </Link>
                     <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-[13.5px] text-muted">
                       <NoticeStatePill state={n.state} openDrafts={n.openDrafts} />
+                      {n.isDemo ? <DemoBadge /> : null}
                       {n.currentRevisionNumber && n.currentRevisionNumber > 1 ? <span>Corrected {n.currentRevisionNumber - 1}×</span> : null}
                       <span>Updated {formatStamp(n.updatedAt, n.timezone)}</span>
                     </div>
