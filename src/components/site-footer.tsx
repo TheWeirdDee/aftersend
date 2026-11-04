@@ -5,10 +5,10 @@ import { ThemeToggle } from "./theme-toggle";
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-line px-4 py-12 sm:px-6">
+    <footer className="border-t border-line px-5 py-12 sm:px-8">
       <div className="mx-auto grid max-w-6xl gap-10 md:grid-cols-[1.4fr_1fr_1fr]">
         <div className="max-w-sm">
-          <Wordmark />
+          <Link href="/" aria-label="AfterSend home" className="inline-flex rounded-lg"><Wordmark /></Link>
           <p className="mt-4 text-[14px] leading-6 text-muted">
             Spoken school announcements you can correct after the link is shared. Speech is generated with AssemblyAI. AfterSend is independent
             and is not endorsed by AssemblyAI.
@@ -26,12 +26,15 @@ export function SiteFooter() {
               </Link>
             </li>
             <li>
-              <Link className="hover:text-fg" href="/#correct">
+              <Link className="hover:text-fg" href="/docs">Docs</Link>
+            </li>
+            <li>
+              <Link className="hover:text-fg" href="/corrections">
                 Corrections
               </Link>
             </li>
             <li>
-              <Link className="hover:text-fg" href="/#trust">
+              <Link className="hover:text-fg" href="/trust">
                 Trust and limits
               </Link>
             </li>
