@@ -1,0 +1,244 @@
+{
+  "base": "https://aftersend-publish-review.vercel.app",
+  "at": "2026-11-04T08:54:09.419Z",
+  "events": [
+    {
+      "label": "spoken preview",
+      "src": "https://aftersend-publish-review.vercel.app/api/revisions/rev_58f8d5ac1597c462498504ed/audio?v=0240ba64d0fc4b10",
+      "duration": 8.72,
+      "ended": true,
+      "played": [
+        [
+          0,
+          8.72
+        ]
+      ],
+      "trace": [
+        {
+          "name": "waiting",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "emptied",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "waiting",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "emptied",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "waiting",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "emptied",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "waiting",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "loadedmetadata",
+          "time": 0,
+          "duration": 8.72,
+          "ready": 1,
+          "played": []
+        },
+        {
+          "name": "playing",
+          "time": 0,
+          "duration": 8.72,
+          "ready": 4,
+          "played": []
+        },
+        {
+          "name": "pause",
+          "time": 8.72,
+          "duration": 8.72,
+          "ready": 4,
+          "played": [
+            [
+              0,
+              8.72
+            ]
+          ]
+        },
+        {
+          "name": "ended",
+          "time": 8.72,
+          "duration": 8.72,
+          "ready": 4,
+          "played": [
+            [
+              0,
+              8.72
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "approvals": [
+    {
+      "status": 200,
+      "request": {
+        "confirmedCriticalFacts": true,
+        "expectedVersion": 2
+      },
+      "response": {
+        "noticeId": "ntc_538bedf9a5dcf55850ebfbd4",
+        "revisionNumber": 1,
+        "alreadyPublished": false,
+        "publishedAt": "2026-11-04T08:55:41.534Z"
+      }
+    }
+  ],
+  "navigation": [
+    "https://aftersend-publish-review.vercel.app/",
+    "https://aftersend-publish-review.vercel.app/",
+    "https://aftersend-publish-review.vercel.app/app/notices/ntc_538bedf9a5dcf55850ebfbd4/edit",
+    "https://aftersend-publish-review.vercel.app/app/notices/ntc_538bedf9a5dcf55850ebfbd4?published=1"
+  ],
+  "workspace": {
+    "status": 201,
+    "response": {
+      "redirect": "/app/notices/ntc_538bedf9a5dcf55850ebfbd4/edit"
+    }
+  },
+  "editor": "https://aftersend-publish-review.vercel.app/app/notices/ntc_538bedf9a5dcf55850ebfbd4/edit",
+  "provider": "assemblyai",
+  "before": "Listen to the whole preview to continue.",
+  "afterPlayback": {
+    "blocker": "Tick the box to confirm you checked the details.",
+    "progress": "Listened to the whole preview",
+    "confirmationDisabled": false
+  },
+  "listener": "https://aftersend-publish-review.vercel.app/n/Rljxl0piFJlV2fehxGb7jw",
+  "copiedLink": "https://aftersend-publish-review.vercel.app/n/Rljxl0piFJlV2fehxGb7jw",
+  "ok": false,
+  "error": "TimeoutError: page.waitForFunction: Timeout 120000ms exceeded.",
+  "url": "https://aftersend-publish-review.vercel.app/app/notices/ntc_538bedf9a5dcf55850ebfbd4?published=1",
+  "screen": "Skip to content\nAfterSend\nYour announcements\nNew announcement\nGuest\nSave your account\nLeave guest session\n\nYou're using AfterSend as a guest. Your announcements stay with this browser for up to 30 days. Save your account with your email before you rely on a link, so you can still update it from any device.\n\n← Your announcements\n\nPublished — share this link with families\n\nAnyone with the link can read or listen without signing in. You choose where to send it; publishing does not send messages to families.\n\nAfterSend test notice — publishing review\nLive\nLast updated 4 Nov 2026, 9:55 AM WAT\nUpdate this announcement\nSHARE THIS LINK · IT STAYS THE SAME WHEN YOU UPDATE\nhttps://aftersend-publish-review.vercel.app/n/Rljxl0piFJlV2fehxGb7jw\nCopy link\nOpen listener page\n\nShare this link, not a downloaded audio file. A downloaded file never updates.\n\nShare\nMessage to send to families\nCopy message\n\nThis link belongs to a guest session. The session stays with this browser for up to 30 days. When it ends you can no longer update the announcement, and after a while the link stops working. Save your account with your email to keep it.\n\nWhat listeners hear now\n0:00 / 0:09\nPlayback speed\n0.75×\n1×\n1.25×\n1.5×\nThis is a test announcement. Pickup is at 3:00 PM at the main gate. Please bring your pickup card.\nAnnouncement history\n\nOnly you can see this. Listeners always get the latest approved version.\n\nFirst version\nLive\n\nThis is a test announcement. Pickup is at 3:00 PM at the main gate. Please bring your pickup card.\n\nPublished\n4 Nov 2026, 9:55 AM WAT\nSpoken length\n0:09\nWithdraw announcement",
+  "media": [
+    {
+      "name": "waiting",
+      "time": 0,
+      "duration": null,
+      "ready": 0,
+      "played": []
+    },
+    {
+      "name": "emptied",
+      "time": 0,
+      "duration": null,
+      "ready": 0,
+      "played": []
+    },
+    {
+      "name": "waiting",
+      "time": 0,
+      "duration": null,
+      "ready": 0,
+      "played": []
+    },
+    {
+      "name": "emptied",
+      "time": 0,
+      "duration": null,
+      "ready": 0,
+      "played": []
+    },
+    {
+      "name": "waiting",
+      "time": 0,
+      "duration": null,
+      "ready": 0,
+      "played": []
+    },
+    {
+      "name": "emptied",
+      "time": 0,
+      "duration": null,
+      "ready": 0,
+      "played": []
+    },
+    {
+      "name": "waiting",
+      "time": 0,
+      "duration": null,
+      "ready": 0,
+      "played": []
+    },
+    {
+      "name": "loadedmetadata",
+      "time": 0,
+      "duration": 8.72,
+      "ready": 1,
+      "played": []
+    },
+    {
+      "name": "playing",
+      "time": 0,
+      "duration": 8.72,
+      "ready": 4,
+      "played": []
+    },
+    {
+      "name": "pause",
+      "time": 8.72,
+      "duration": 8.72,
+      "ready": 4,
+      "played": [
+        [
+          0,
+          8.72
+        ]
+      ]
+    },
+    {
+      "name": "ended",
+      "time": 8.72,
+      "duration": 8.72,
+      "ready": 4,
+      "played": [
+        [
+          0,
+          8.72
+        ]
+      ]
+    },
+    {
+      "name": "loadedmetadata",
+      "time": 0,
+      "duration": 8.72,
+      "ready": 4,
+      "played": []
+    }
+  ]
+}

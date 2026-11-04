@@ -1,0 +1,46 @@
+[
+  {
+    "viewport": "desktop",
+    "theme": "light",
+    "overflow": 0,
+    "pages": {
+      "docs": "Everything you need to send one link.",
+      "corrections": "Change the message, not the link.",
+      "trust": "What AfterSend will not claim."
+    },
+    "errors": []
+  },
+  {
+    "viewport": "desktop",
+    "theme": "dark",
+    "overflow": 0,
+    "pages": {
+      "docs": "Everything you need to send one link.",
+      "corrections": "Change the message, not the link.",
+      "trust": "What AfterSend will not claim."
+    },
+    "errors": []
+  },
+  {
+    "viewport": "mobile",
+    "theme": "light",
+    "overflow": 0,
+    "pages": {
+      "docs": "Everything you need to send one link.",
+      "corrections": "Change the message, not the link.",
+      "trust": "What AfterSend will not claim."
+    },
+    "errors": []
+  },
+  {
+    "viewport": "mobile",
+    "theme": "dark",
+    "overflow": 0,
+    "pages": {
+      "docs": "Everything you need to send one link.",
+      "corrections": "Change the message, not the link.",
+      "trust": "What AfterSend will not claim."
+    },
+    "errors": []
+  }
+]

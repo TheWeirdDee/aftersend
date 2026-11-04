@@ -1,0 +1,466 @@
+{
+  "base": "https://aftersend-publish-review.vercel.app",
+  "at": "2026-11-04T08:58:20.507Z",
+  "events": [
+    {
+      "label": "spoken preview",
+      "src": "https://aftersend-publish-review.vercel.app/api/revisions/rev_c5e4a8e9cdc26214ec2c9c16/audio?v=b69bae6b5d129f5f",
+      "duration": 8.88,
+      "ended": true,
+      "played": [
+        [
+          0,
+          8.88
+        ]
+      ],
+      "trace": [
+        {
+          "name": "waiting",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "emptied",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "waiting",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "emptied",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "waiting",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "emptied",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "waiting",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "loadedmetadata",
+          "time": 0,
+          "duration": 8.88,
+          "ready": 1,
+          "played": []
+        },
+        {
+          "name": "playing",
+          "time": 0,
+          "duration": 8.88,
+          "ready": 3,
+          "played": []
+        },
+        {
+          "name": "waiting",
+          "time": 4.648634,
+          "duration": 8.88,
+          "ready": 2,
+          "played": [
+            [
+              0,
+              4.648634
+            ]
+          ]
+        },
+        {
+          "name": "playing",
+          "time": 4.693333,
+          "duration": 8.88,
+          "ready": 3,
+          "played": [
+            [
+              0,
+              4.693333
+            ]
+          ]
+        },
+        {
+          "name": "waiting",
+          "time": 5.324501,
+          "duration": 8.88,
+          "ready": 2,
+          "played": [
+            [
+              0,
+              5.324501
+            ]
+          ]
+        },
+        {
+          "name": "playing",
+          "time": 5.376,
+          "duration": 8.88,
+          "ready": 3,
+          "played": [
+            [
+              0,
+              5.376
+            ]
+          ]
+        },
+        {
+          "name": "waiting",
+          "time": 7.372532,
+          "duration": 8.88,
+          "ready": 2,
+          "played": [
+            [
+              0,
+              7.372532
+            ]
+          ]
+        },
+        {
+          "name": "playing",
+          "time": 7.424,
+          "duration": 8.88,
+          "ready": 4,
+          "played": [
+            [
+              0,
+              7.424
+            ]
+          ]
+        },
+        {
+          "name": "pause",
+          "time": 8.88,
+          "duration": 8.88,
+          "ready": 4,
+          "played": [
+            [
+              0,
+              8.88
+            ]
+          ]
+        },
+        {
+          "name": "ended",
+          "time": 8.88,
+          "duration": 8.88,
+          "ready": 4,
+          "played": [
+            [
+              0,
+              8.88
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "label": "announcement",
+      "src": "https://aftersend-publish-review.vercel.app/api/public/ys4C-H6H4xSeOlBkwU7egg/audio/rev_c5e4a8e9cdc26214ec2c9c16/b69bae6b5d129f5fb5c93ca3b631716c956a6f8116573fe38384d85705f98e03.wav",
+      "duration": 8.88,
+      "ended": true,
+      "played": [
+        [
+          0,
+          8.88
+        ]
+      ],
+      "trace": [
+        {
+          "name": "waiting",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "emptied",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "waiting",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "emptied",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "waiting",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "emptied",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "waiting",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "loadedmetadata",
+          "time": 0,
+          "duration": 8.88,
+          "ready": 1,
+          "played": []
+        },
+        {
+          "name": "playing",
+          "time": 0,
+          "duration": 8.88,
+          "ready": 4,
+          "played": []
+        },
+        {
+          "name": "pause",
+          "time": 8.88,
+          "duration": 8.88,
+          "ready": 4,
+          "played": [
+            [
+              0,
+              8.88
+            ]
+          ]
+        },
+        {
+          "name": "ended",
+          "time": 8.88,
+          "duration": 8.88,
+          "ready": 4,
+          "played": [
+            [
+              0,
+              8.88
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "label": "spoken preview",
+      "src": "https://aftersend-publish-review.vercel.app/api/revisions/rev_ee02d21254bcd54e1e2bb9b6/audio?v=0c096e4e26d6d596",
+      "duration": 9.12,
+      "ended": true,
+      "played": [
+        [
+          0,
+          9.12
+        ]
+      ],
+      "trace": [
+        {
+          "name": "waiting",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "emptied",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "waiting",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "emptied",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "waiting",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "loadedmetadata",
+          "time": 0,
+          "duration": 9.12,
+          "ready": 1,
+          "played": []
+        },
+        {
+          "name": "playing",
+          "time": 0,
+          "duration": 9.12,
+          "ready": 3,
+          "played": []
+        },
+        {
+          "name": "pause",
+          "time": 9.12,
+          "duration": 9.12,
+          "ready": 4,
+          "played": [
+            [
+              0,
+              9.12
+            ]
+          ]
+        },
+        {
+          "name": "ended",
+          "time": 9.12,
+          "duration": 9.12,
+          "ready": 4,
+          "played": [
+            [
+              0,
+              9.12
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "label": "announcement",
+      "src": "https://aftersend-publish-review.vercel.app/api/public/ys4C-H6H4xSeOlBkwU7egg/audio/rev_ee02d21254bcd54e1e2bb9b6/0c096e4e26d6d596d4d39d245e5083f03d904e76d70a4573ba0f656bdb480703.wav",
+      "duration": 9.12,
+      "ended": true,
+      "played": [
+        [
+          0,
+          9.12
+        ]
+      ],
+      "trace": [
+        {
+          "name": "playing",
+          "time": 0,
+          "duration": 9.12,
+          "ready": 4,
+          "played": []
+        },
+        {
+          "name": "pause",
+          "time": 9.12,
+          "duration": 9.12,
+          "ready": 4,
+          "played": [
+            [
+              0,
+              9.12
+            ]
+          ]
+        },
+        {
+          "name": "ended",
+          "time": 9.12,
+          "duration": 9.12,
+          "ready": 4,
+          "played": [
+            [
+              0,
+              9.12
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "approvals": [
+    {
+      "status": 200,
+      "request": {
+        "confirmedCriticalFacts": true,
+        "expectedVersion": 2
+      },
+      "response": {
+        "noticeId": "ntc_7d9339a6348fdfd2c11911bc",
+        "revisionNumber": 1,
+        "alreadyPublished": false,
+        "publishedAt": "2026-11-04T09:00:58.704Z"
+      }
+    },
+    {
+      "status": 200,
+      "request": {
+        "confirmedCriticalFacts": true,
+        "expectedVersion": 1
+      },
+      "response": {
+        "noticeId": "ntc_7d9339a6348fdfd2c11911bc",
+        "revisionNumber": 2,
+        "alreadyPublished": false,
+        "publishedAt": "2026-11-04T09:02:51.993Z"
+      }
+    }
+  ],
+  "navigation": [
+    "https://aftersend-publish-review.vercel.app/",
+    "https://aftersend-publish-review.vercel.app/",
+    "https://aftersend-publish-review.vercel.app/app/notices/ntc_7d9339a6348fdfd2c11911bc/edit",
+    "https://aftersend-publish-review.vercel.app/app/notices/ntc_7d9339a6348fdfd2c11911bc?published=1",
+    "https://aftersend-publish-review.vercel.app/app/notices/ntc_7d9339a6348fdfd2c11911bc/edit",
+    "https://aftersend-publish-review.vercel.app/app/notices/ntc_7d9339a6348fdfd2c11911bc?published=2",
+    "https://aftersend-publish-review.vercel.app/app/notices/ntc_7d9339a6348fdfd2c11911bc?published=2"
+  ],
+  "workspace": {
+    "status": 201,
+    "response": {
+      "redirect": "/app/notices/ntc_7d9339a6348fdfd2c11911bc/edit"
+    }
+  },
+  "editor": "https://aftersend-publish-review.vercel.app/app/notices/ntc_7d9339a6348fdfd2c11911bc/edit",
+  "provider": "assemblyai",
+  "before": "Listen to the whole preview to continue.",
+  "afterPlayback": {
+    "blocker": "Tick the box to confirm you checked the details.",
+    "progress": "Listened to the whole preview",
+    "confirmationDisabled": false
+  },
+  "listener": "https://aftersend-publish-review.vercel.app/n/ys4C-H6H4xSeOlBkwU7egg",
+  "copiedLink": "https://aftersend-publish-review.vercel.app/n/ys4C-H6H4xSeOlBkwU7egg",
+  "ok": true
+}

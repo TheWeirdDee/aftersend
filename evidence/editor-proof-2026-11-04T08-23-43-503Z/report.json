@@ -1,0 +1,519 @@
+{
+  "base": "https://aftersend-sigma.vercel.app",
+  "at": "2026-11-04T08:23:43.778Z",
+  "events": [
+    {
+      "label": "spoken preview",
+      "src": "https://aftersend-sigma.vercel.app/api/revisions/rev_064513ee0623ee9b2ca4a04e/audio?v=6cd631bcc9e6a14e",
+      "duration": 9.04,
+      "ended": true,
+      "played": [
+        [
+          0,
+          9.04
+        ]
+      ],
+      "trace": [
+        {
+          "name": "waiting",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "emptied",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "waiting",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "emptied",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "waiting",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "emptied",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "waiting",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "loadedmetadata",
+          "time": 0,
+          "duration": 9.04,
+          "ready": 1,
+          "played": []
+        },
+        {
+          "name": "playing",
+          "time": 0,
+          "duration": 9.04,
+          "ready": 4,
+          "played": []
+        },
+        {
+          "name": "pause",
+          "time": 9.04,
+          "duration": 9.04,
+          "ready": 4,
+          "played": [
+            [
+              0,
+              9.04
+            ]
+          ]
+        },
+        {
+          "name": "ended",
+          "time": 9.04,
+          "duration": 9.04,
+          "ready": 4,
+          "played": [
+            [
+              0,
+              9.04
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "label": "announcement",
+      "src": "https://aftersend-sigma.vercel.app/api/public/e_-x3hzuy4iSQ77EHtdBWA/audio/rev_064513ee0623ee9b2ca4a04e/6cd631bcc9e6a14e630042a9f8519f4eff0ac054edbcc51ad07bb1a359532205.wav",
+      "duration": 9.04,
+      "ended": true,
+      "played": [
+        [
+          0,
+          9.04
+        ]
+      ],
+      "trace": [
+        {
+          "name": "playing",
+          "time": 0,
+          "duration": 9.04,
+          "ready": 4,
+          "played": []
+        },
+        {
+          "name": "pause",
+          "time": 9.04,
+          "duration": 9.04,
+          "ready": 4,
+          "played": [
+            [
+              0,
+              9.04
+            ]
+          ]
+        },
+        {
+          "name": "ended",
+          "time": 9.04,
+          "duration": 9.04,
+          "ready": 4,
+          "played": [
+            [
+              0,
+              9.04
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "label": "spoken preview",
+      "src": "https://aftersend-sigma.vercel.app/api/revisions/rev_cce0741ab6f0544eb58e62f9/audio?v=8d786e73ae462d61",
+      "duration": 9.04,
+      "ended": true,
+      "played": [
+        [
+          0,
+          9.04
+        ]
+      ],
+      "trace": [
+        {
+          "name": "waiting",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "waiting",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "emptied",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "emptied",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "waiting",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "waiting",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "emptied",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "emptied",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "waiting",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "waiting",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "emptied",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "emptied",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "waiting",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "waiting",
+          "time": 0,
+          "duration": null,
+          "ready": 0,
+          "played": []
+        },
+        {
+          "name": "loadedmetadata",
+          "time": 0,
+          "duration": 9.04,
+          "ready": 1,
+          "played": []
+        },
+        {
+          "name": "loadedmetadata",
+          "time": 0,
+          "duration": 9.04,
+          "ready": 1,
+          "played": []
+        },
+        {
+          "name": "playing",
+          "time": 0,
+          "duration": 9.04,
+          "ready": 3,
+          "played": []
+        },
+        {
+          "name": "playing",
+          "time": 0,
+          "duration": 9.04,
+          "ready": 3,
+          "played": []
+        },
+        {
+          "name": "waiting",
+          "time": 5.318123,
+          "duration": 9.04,
+          "ready": 2,
+          "played": [
+            [
+              0,
+              5.318123
+            ]
+          ]
+        },
+        {
+          "name": "waiting",
+          "time": 5.318123,
+          "duration": 9.04,
+          "ready": 2,
+          "played": [
+            [
+              0,
+              5.318123
+            ]
+          ]
+        },
+        {
+          "name": "playing",
+          "time": 5.376,
+          "duration": 9.04,
+          "ready": 3,
+          "played": [
+            [
+              0,
+              5.376
+            ]
+          ]
+        },
+        {
+          "name": "playing",
+          "time": 5.376,
+          "duration": 9.04,
+          "ready": 3,
+          "played": [
+            [
+              0,
+              5.376
+            ]
+          ]
+        },
+        {
+          "name": "waiting",
+          "time": 6.000161,
+          "duration": 9.04,
+          "ready": 2,
+          "played": [
+            [
+              0,
+              6.000161
+            ]
+          ]
+        },
+        {
+          "name": "waiting",
+          "time": 6.000161,
+          "duration": 9.04,
+          "ready": 2,
+          "played": [
+            [
+              0,
+              6.000161
+            ]
+          ]
+        },
+        {
+          "name": "playing",
+          "time": 6.058667,
+          "duration": 9.04,
+          "ready": 3,
+          "played": [
+            [
+              0,
+              6.058667
+            ]
+          ]
+        },
+        {
+          "name": "playing",
+          "time": 6.058667,
+          "duration": 9.04,
+          "ready": 3,
+          "played": [
+            [
+              0,
+              6.058667
+            ]
+          ]
+        },
+        {
+          "name": "pause",
+          "time": 9.04,
+          "duration": 9.04,
+          "ready": 4,
+          "played": [
+            [
+              0,
+              9.04
+            ]
+          ]
+        },
+        {
+          "name": "pause",
+          "time": 9.04,
+          "duration": 9.04,
+          "ready": 4,
+          "played": [
+            [
+              0,
+              9.04
+            ]
+          ]
+        },
+        {
+          "name": "ended",
+          "time": 9.04,
+          "duration": 9.04,
+          "ready": 4,
+          "played": [
+            [
+              0,
+              9.04
+            ]
+          ]
+        },
+        {
+          "name": "ended",
+          "time": 9.04,
+          "duration": 9.04,
+          "ready": 4,
+          "played": [
+            [
+              0,
+              9.04
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "label": "announcement",
+      "src": "https://aftersend-sigma.vercel.app/api/public/e_-x3hzuy4iSQ77EHtdBWA/audio/rev_cce0741ab6f0544eb58e62f9/8d786e73ae462d61a65617b2265c3469b71fcea09fb219f252db0757839d0a8e.wav",
+      "duration": 9.04,
+      "ended": true,
+      "played": [
+        [
+          0,
+          9.04
+        ]
+      ],
+      "trace": [
+        {
+          "name": "playing",
+          "time": 0,
+          "duration": 9.04,
+          "ready": 4,
+          "played": []
+        },
+        {
+          "name": "pause",
+          "time": 9.04,
+          "duration": 9.04,
+          "ready": 4,
+          "played": [
+            [
+              0,
+              9.04
+            ]
+          ]
+        },
+        {
+          "name": "ended",
+          "time": 9.04,
+          "duration": 9.04,
+          "ready": 4,
+          "played": [
+            [
+              0,
+              9.04
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "approvals": [
+    {
+      "status": 200,
+      "request": {
+        "confirmedCriticalFacts": true,
+        "expectedVersion": 2
+      },
+      "response": {
+        "noticeId": "ntc_dadb0232dfce32dbec7cdd08",
+        "revisionNumber": 1,
+        "alreadyPublished": false,
+        "publishedAt": "2026-11-04T08:24:59.981Z"
+      }
+    },
+    {
+      "status": 200,
+      "request": {
+        "confirmedCriticalFacts": true,
+        "expectedVersion": 1
+      },
+      "response": {
+        "noticeId": "ntc_dadb0232dfce32dbec7cdd08",
+        "revisionNumber": 2,
+        "alreadyPublished": false,
+        "publishedAt": "2026-11-04T08:27:03.924Z"
+      }
+    }
+  ],
+  "editor": "https://aftersend-sigma.vercel.app/app/notices/ntc_dadb0232dfce32dbec7cdd08/edit",
+  "before": "Listen to the whole preview to continue.",
+  "afterPlayback": {
+    "blocker": "Tick the box to confirm you checked the details.",
+    "progress": "Listened to the whole preview",
+    "confirmationDisabled": false
+  },
+  "listener": "https://aftersend-sigma.vercel.app/n/e_-x3hzuy4iSQ77EHtdBWA",
+  "copiedLink": "https://aftersend-sigma.vercel.app/n/e_-x3hzuy4iSQ77EHtdBWA",
+  "ok": true
+}
