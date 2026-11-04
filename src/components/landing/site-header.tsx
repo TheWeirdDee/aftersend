@@ -9,8 +9,9 @@ import { CreateAnnouncementButton } from "../app/create-button";
 
 const NAV = [
   { href: "/#how", label: "How it works" },
-  { href: "/#correct", label: "Corrections" },
-  { href: "/#trust", label: "Trust" },
+  { href: "/docs", label: "Docs" },
+  { href: "/corrections", label: "Corrections" },
+  { href: "/trust", label: "Trust" },
   { href: "/#faq", label: "FAQ" },
 ];
 
@@ -38,11 +39,11 @@ export function SiteHeader() {
         scrolled || open ? "border-line bg-ink/90 backdrop-blur-xl" : "border-transparent bg-ink"
       }`}
     >
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
+      <div className="mx-auto flex h-16 max-w-[1216px] items-center justify-between gap-3 px-5 sm:px-8">
         <Link href="/" aria-label="AfterSend home" className="shrink-0 rounded-lg" onClick={() => setOpen(false)}>
           <Wordmark />
         </Link>
-        <nav aria-label="Primary" className="hidden md:block">
+        <nav aria-label="Primary" className="hidden lg:block">
           <ul className="flex items-center gap-1">
             {NAV.map((n) => (
               <li key={n.href}>
@@ -55,7 +56,7 @@ export function SiteHeader() {
         </nav>
         <div className="flex items-center gap-1.5">
           <ThemeToggle />
-          <Link href="/signin" className="btn-ghost btn-sm hidden lg:inline-flex">
+          <Link href="/signin" className="btn-ghost btn-sm hidden xl:inline-flex">
             Sign in
           </Link>
           <span className="hidden sm:inline-flex">
@@ -63,7 +64,7 @@ export function SiteHeader() {
           </span>
           <button
             type="button"
-            className="btn-ghost btn-sm size-10 px-0 md:hidden"
+            className="btn-ghost btn-sm size-10 px-0 lg:hidden"
             aria-expanded={open}
             aria-controls="mobile-nav"
             aria-label={open ? "Close menu" : "Open menu"}
@@ -73,8 +74,8 @@ export function SiteHeader() {
           </button>
         </div>
       </div>
-      <nav id="mobile-nav" aria-label="Mobile" hidden={!open} className="border-t border-line md:hidden">
-        <ul className="mx-auto flex max-w-6xl flex-col px-4 py-3">
+      <nav id="mobile-nav" aria-label="Mobile" hidden={!open} className="border-t border-line lg:hidden">
+        <ul className="mx-auto flex max-w-6xl flex-col px-5 py-3 sm:px-8">
           {NAV.map((n) => (
             <li key={n.href}>
               <Link href={n.href} onClick={() => setOpen(false)} className="flex min-h-12 items-center rounded-lg px-2 text-[17px] text-fg hover:bg-surface-2">
