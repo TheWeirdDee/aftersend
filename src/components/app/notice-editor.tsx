@@ -16,6 +16,7 @@ import { formatDuration } from "@/lib/format";
 import { AudioPlayer } from "../audio-player";
 import { Alert, Check, External, Spinner, Wave } from "../icons";
 import { DiffView } from "./diff-view";
+import { DemoBadge } from "./demo-badge";
 import { FactsPanel } from "./facts-panel";
 import { TestAudioBadge } from "./status-pill";
 
@@ -46,6 +47,7 @@ type StatusResponse = {
 export type EditorProps = {
   noticeId: string;
   noticeState: "draft" | "published" | "withdrawn";
+  isDemo?: boolean;
   publicPath: string;
   sourceUrl: string | null;
   base: { revisionId: string; revisionNumber: number; title: string; displayText: string; voiceId: string } | null;
@@ -469,7 +471,10 @@ export function NoticeEditor(props: EditorProps) {
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-10">
         <div className="min-w-0 space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-[13px]">
-            <span className="text-muted">{isCorrection ? "Updating the live announcement" : "New announcement"}</span>
+            <span className="flex items-center gap-2 text-muted">
+              {isCorrection ? "Updating the live announcement" : "New announcement"}
+              {props.isDemo ? <DemoBadge /> : null}
+            </span>
             <span aria-live="polite" className="text-faint">
               {saveLabel}
               {save === "error" ? (
