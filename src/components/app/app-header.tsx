@@ -14,7 +14,7 @@ export function AppHeader({ workspaceLabel, isDemo, hasEmail = false }: { worksp
       <header className="sticky top-0 z-40 border-b border-line bg-ink/90 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-[1180px] items-center justify-between gap-3 px-4 sm:px-6">
           <div className="flex min-w-0 items-center gap-5">
-            <Link href={signedIn ? "/app" : "/"} aria-label="AfterSend" className="shrink-0 rounded-lg">
+            <Link href="/" aria-label="AfterSend home" className="shrink-0 rounded-lg">
               <Wordmark markOnlyBelow />
             </Link>
             {signedIn ? (
