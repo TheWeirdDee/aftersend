@@ -32,7 +32,7 @@ export function BeforeAfter({ beforeSeconds, afterSeconds }: { beforeSeconds: nu
             After the correction <span className="pill border-signal/40 text-signal normal-case tracking-normal">Corrected</span>
           </p>
           <p className="mt-2 text-[17px] leading-[1.5] text-fg">
-            Pickup is at <span className="mark-lime font-semibold">4:00 PM</span> at the main gate.
+            Pickup is at <span className="font-semibold text-fg">4:00 PM</span> at the main gate.
           </p>
           <div className="mt-3">
             <SampleClip src="/samples/pickup-4pm.wav" label="Hear the corrected 4:00 PM announcement" seconds={afterSeconds} />
