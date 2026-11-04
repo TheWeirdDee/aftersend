@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getPublicManifest } from "@/lib/notices/public-manifest";
 import { formatStamp } from "@/lib/format";
 import { AudioPlayer } from "@/components/audio-player";
+import { DemoBadge } from "@/components/app/demo-badge";
 import { UpdateWatcher } from "@/components/listener/update-watcher";
 import { Wordmark } from "@/components/logo";
 import { Download } from "@/components/icons";
@@ -70,10 +71,16 @@ export default async function ListenerPage({ params }: Props) {
             <span className="size-1.5 rounded-full bg-signal" aria-hidden /> Current announcement
           </span>
           {revised ? <span className="pill border-line-strong text-muted">Corrected</span> : null}
+          {m.isDemo ? <DemoBadge /> : null}
         </p>
         <h1 id="notice-title" className="mt-3 text-[clamp(1.85rem,6.5vw,2.75rem)] leading-[1.08] font-semibold tracking-[-0.04em] text-balance">
           {m.noticeTitle}
         </h1>
+        {m.isDemo ? (
+          <p className="mt-3 rounded-lg border border-warn/40 bg-warn/[0.08] px-3.5 py-2.5 text-[13.5px] leading-5 text-fg" data-testid="demo-notice">
+            This is sample demonstration data for AfterSend. It is not a real school announcement.
+          </p>
+        ) : null}
         <p className="mt-3 text-[14px] text-muted" data-testid="updated-at">
           <time dateTime={m.publishedAt}>
             {revised ? "Updated" : "Published"} {formatStamp(m.publishedAt, m.timezone)}
