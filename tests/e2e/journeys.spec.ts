@@ -5,7 +5,7 @@ test("Journey A + B: publish, then correct 3:00 PM → 4:00 PM at the unchanged 
   await startDemo(page);
   await expect(page.getByRole("button", { name: /Publish announcement/ }).first()).toBeDisabled();
   await generateListenApprove(page, /Publish announcement/);
-  await expect(page.getByText("Your announcement is live.")).toBeVisible();
+  await expect(page.getByText("Published — share this link with families", { exact: true })).toBeVisible();
   const url = await publicUrl(page);
 
   const listener = await context.newPage();
@@ -25,7 +25,7 @@ test("Journey A + B: publish, then correct 3:00 PM → 4:00 PM at the unchanged 
   await page.getByRole("button", { name: /Use suggestion/ }).click();
   await expect(page.getByLabel(/Spoken correction note/)).toHaveValue("Update: Pickup is at 4:00 PM at the main gate.");
   await generateListenApprove(page, /Update announcement/);
-  await expect(page.getByText("Your update is live.")).toBeVisible();
+  await expect(page.getByText("Updated — the same link now plays your correction.", { exact: true })).toBeVisible();
   expect(await publicUrl(page)).toBe(url);
 
   // Same link, refreshed: new text, new audio, revision label.
