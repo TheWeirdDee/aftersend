@@ -6,7 +6,8 @@ const stamp = new Date().toISOString().replace(/[:.]/g, '-');
 const dir = `evidence/editor-proof-${stamp}`;
 fs.mkdirSync(dir, { recursive: true });
 fs.mkdirSync('.data/editor-proof', { recursive: true });
-const browser = await chromium.launch();
+// Mirror the e2e runner: a null audio sink keeps playback decoding normally when the Windows audio device is busy.
+const browser = await chromium.launch({ args: ['--mute-audio', '--disable-audio-output'] });
 const publisher = await browser.newContext({ viewport: { width: 1440, height: 1000 }, permissions: ['clipboard-read', 'clipboard-write'] });
 const recipient = await browser.newContext({ viewport: { width: 390, height: 844 } });
 const page = await publisher.newPage();
