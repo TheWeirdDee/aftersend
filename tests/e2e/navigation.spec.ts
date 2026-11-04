@@ -9,9 +9,12 @@ import { newEmail, signInWithEmail, startGuestViaApi } from "./helpers";
 const HEADLINE = "One announcement link, even when pickup time changes.";
 const SECTIONS = [
   ["How it works", "how"],
-  ["Corrections", "correct"],
-  ["Trust", "trust"],
   ["FAQ", "faq"],
+] as const;
+const PAGES = [
+  ["Docs", "/docs", "Everything you need to send one link."],
+  ["Corrections", "/corrections", "Change the message, not the link."],
+  ["Trust", "/trust", "What AfterSend will not claim."],
 ] as const;
 
 /** Waits for smooth scrolling to finish. */
@@ -49,6 +52,16 @@ for (const visitor of ["a fresh visitor", "a returning guest"] as const) {
         expect(top, `${name} sits under the header`).toBeLessThanOrEqual(100);
         expect(top).toBeGreaterThanOrEqual(0);
         await expect(page.getByRole("heading", { level: 1 })).toHaveText(HEADLINE);
+      }
+    });
+
+    test("opens Docs, Corrections and Trust from the header", async ({ page }) => {
+      if (visitor === "a returning guest") await startGuestViaApi(page);
+      for (const [name, path, heading] of PAGES) {
+        await page.goto("/");
+        await primary(page).getByRole("link", { name, exact: true }).click();
+        await expect(page).toHaveURL(new RegExp(`${path}$`));
+        await expect(page.getByRole("heading", { level: 1 })).toContainText(heading);
       }
     });
 
@@ -133,9 +146,10 @@ test("the header menu on a phone is an accessible button that opens and closes t
   await expect(menu).toHaveAttribute("aria-expanded", "false");
   await menu.click();
   await expect(page.getByRole("button", { name: "Close menu" })).toHaveAttribute("aria-expanded", "true");
-  await page.getByRole("navigation", { name: "Mobile" }).getByRole("link", { name: "Trust" }).click();
+  await page.getByRole("navigation", { name: "Mobile" }).getByRole("link", { name: "Docs" }).click();
   await settled(page);
-  await expect(page).toHaveURL(/\/#trust$/);
+  await expect(page).toHaveURL(/\/docs$/);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Everything you need to send one link.");
   await expect(page.getByRole("button", { name: "Open menu" })).toBeVisible();
   await page.getByRole("button", { name: "Open menu" }).click();
   await page.keyboard.press("Escape");
@@ -148,7 +162,7 @@ test("no horizontal scroll from 320 px to desktop, in light and dark", async ({ 
     for (const width of [320, 375, 390, 768, 1024, 1280, 1440]) {
       const ctx = await browser.newContext({ viewport: { width, height: 800 }, colorScheme: scheme });
       const page = await ctx.newPage();
-      for (const route of ["/", "/signin"]) {
+      for (const route of ["/", "/signin", "/docs", "/corrections", "/trust"]) {
         await page.goto(route);
         const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
         expect(overflow, `${route} at ${width}px (${scheme})`).toBeLessThanOrEqual(0);
