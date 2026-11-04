@@ -9,6 +9,7 @@ import { formatDuration, formatStamp } from "@/lib/format";
 import { AppHeader } from "@/components/app/app-header";
 import { AudioPlayer } from "@/components/audio-player";
 import { CopyButton } from "@/components/app/copy-button";
+import { DemoBadge } from "@/components/app/demo-badge";
 import { ShareLink } from "@/components/app/share-link";
 import { NoticeStatePill, RevisionStatePill, TestAudioBadge } from "@/components/app/status-pill";
 import { WithdrawButton } from "@/components/app/withdraw-button";
@@ -67,6 +68,7 @@ export default async function NoticePage({
             <h1 className="text-[clamp(1.75rem,4vw,2.5rem)] leading-tight font-semibold tracking-[-0.04em]">{notice.title}</h1>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-[14px] text-muted">
               <NoticeStatePill state={notice.state} openDrafts={openDraft ? 1 : 0} />
+              {notice.isDemo ? <DemoBadge /> : null}
               {current?.publishedAt ? <span>Last updated {formatStamp(current.publishedAt, notice.timezone)}</span> : null}
             </div>
           </div>
@@ -163,6 +165,21 @@ export default async function NoticePage({
                       <>
                         <dt>Spoken length</dt>
                         <dd className="text-right">{formatDuration(r.audio.durationMs)}</dd>
+                      </>
+                    ) : null}
+                    {r.audio ? (
+                      <>
+                        <dt>Voice / model</dt>
+                        <dd className="break-all text-right">
+                          {r.voiceId}
+                          {r.modelId ? ` · ${r.modelId}` : ""}
+                        </dd>
+                      </>
+                    ) : null}
+                    {r.requestId ? (
+                      <>
+                        <dt>Provider request</dt>
+                        <dd className="break-all font-mono text-[11.5px] text-right">{r.requestId}</dd>
                       </>
                     ) : null}
                   </dl>
