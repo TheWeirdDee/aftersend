@@ -27,10 +27,12 @@ test("the call to action starts writing on the sample announcement, with no deto
   await expect(page.getByLabel("Announcement", { exact: true })).toBeEditable();
 });
 
-test("/demo, kept for old links, lands on the one homepage", async ({ page }) => {
+test("/demo is a working, clearly labelled sample listener page", async ({ page }) => {
   await page.goto("/demo");
-  await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("One announcement link, even when pickup time changes.");
+  await expect(page).toHaveURL(/\/demo$/);
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("One link. A correction. No re-recording.");
+  await expect(page.getByText("Demo data").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Hear the 3:00 PM announcement" })).toBeVisible();
 });
 
 test("the correction example changes 3 PM to 4 PM while the link stays the same", async ({ page }) => {
@@ -51,7 +53,7 @@ test("the correction example changes 3 PM to 4 PM while the link stays the same"
 
 test("every internal link on public pages resolves", async ({ page, request }) => {
   const seen = new Set<string>();
-  for (const path of ["/", "/signin", "/docs", "/corrections", "/trust"]) {
+  for (const path of ["/", "/demo", "/signin", "/docs", "/corrections", "/trust"]) {
     await page.goto(path);
     const hrefs = await page.locator("a[href^='/']").evaluateAll((as) => as.map((a) => (a as HTMLAnchorElement).getAttribute("href")!));
     hrefs.forEach((h) => seen.add(h.split("#")[0] || "/"));
@@ -74,6 +76,19 @@ test("keyboard users can reach the primary action and see focus", async ({ page 
   expect(found).toBe(true);
   const outline = await page.evaluate(() => getComputedStyle(document.activeElement!).outlineStyle);
   expect(outline).not.toBe("none");
+});
+
+test("the judge demo labels its sample in the editor and on the public listener page", async ({ page, context }) => {
+  await page.goto("/demo");
+  await page.getByRole("button", { name: "Open the demo workspace" }).click();
+  await expect(page).toHaveURL(/\/app\/notices\/ntc_[a-f0-9]+\/edit$/);
+  await expect(page.getByText("Demo data").first()).toBeVisible();
+  await generateListenApprove(page, /Publish announcement/);
+  const url = await publicUrl(page);
+  const listener = await context.newPage();
+  await listener.goto(url);
+  await expect(listener.getByTestId("demo-notice")).toContainText("sample demonstration data");
+  await expect(listener.getByText("Demo data").first()).toBeVisible();
 });
 
 test("withdrawal shows an explicit withdrawn page with no audio", async ({ page, context }) => {
