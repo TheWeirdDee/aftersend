@@ -45,6 +45,7 @@ export function AudioPlayer({
   const [rate, setRate] = useState(1);
   const [state, setState] = useState<"idle" | "loading" | "error">("idle");
   const [coverage, setCoverage] = useState(0);
+  const [completed, setCompleted] = useState(false);
   const reported = useRef(false);
   const reloads = useRef(0);
   const reloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -111,6 +112,7 @@ export function AudioPlayer({
     setCoverage(c);
     if (a.ended && c >= LISTENED_COVERAGE && !reported.current) {
       reported.current = true;
+      setCompleted(true);
       onListened?.();
     }
   };
@@ -231,7 +233,7 @@ export function AudioPlayer({
       </div>
       {onListened ? (
         <p className="mt-2 font-mono text-[11.5px] text-faint" data-testid="listen-progress">
-          {reported.current ? "Listened to the whole preview" : `Listened to ${Math.floor(coverage * 100)}%: play it through to approve`}
+          {completed ? "Listened to the whole preview" : `Listened to ${Math.floor(coverage * 100)}%: play it through to approve`}
         </p>
       ) : null}
       <div role="status" aria-live="polite" className={state === "error" ? "mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-danger" : "sr-only"}>
