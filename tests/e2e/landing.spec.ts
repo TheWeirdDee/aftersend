@@ -51,7 +51,7 @@ test("the correction example changes 3 PM to 4 PM while the link stays the same"
 
 test("every internal link on public pages resolves", async ({ page, request }) => {
   const seen = new Set<string>();
-  for (const path of ["/", "/signin"]) {
+  for (const path of ["/", "/signin", "/docs", "/corrections", "/trust"]) {
     await page.goto(path);
     const hrefs = await page.locator("a[href^='/']").evaluateAll((as) => as.map((a) => (a as HTMLAnchorElement).getAttribute("href")!));
     hrefs.forEach((h) => seen.add(h.split("#")[0] || "/"));
