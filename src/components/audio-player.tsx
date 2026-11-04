@@ -11,7 +11,7 @@ const MAX_AUTO_RELOADS = 3;
 const START_WATCHDOG_MS = 4000;
 const MAX_STALL_RECOVERIES = 3;
 /** Share of the audio that must actually have played before it counts as listened to. */
-export const LISTENED_COVERAGE = 0.9;
+export const LISTENED_COVERAGE = 0.99;
 
 /** Fraction of the media that has been played, from the browser's own record of played ranges. */
 function playedCoverage(a: HTMLAudioElement) {
@@ -109,7 +109,7 @@ export function AudioPlayer({
   const checkCoverage = (a: HTMLAudioElement) => {
     const c = playedCoverage(a);
     setCoverage(c);
-    if (c >= LISTENED_COVERAGE && !reported.current) {
+    if (a.ended && c >= LISTENED_COVERAGE && !reported.current) {
       reported.current = true;
       onListened?.();
     }
@@ -231,7 +231,7 @@ export function AudioPlayer({
       </div>
       {onListened ? (
         <p className="mt-2 font-mono text-[11.5px] text-faint" data-testid="listen-progress">
-          {coverage >= LISTENED_COVERAGE ? "Listened to the whole preview" : `Listened to ${Math.floor(coverage * 100)}%: play it through to approve`}
+          {reported.current ? "Listened to the whole preview" : `Listened to ${Math.floor(coverage * 100)}%: play it through to approve`}
         </p>
       ) : null}
       <div role="status" aria-live="polite" className={state === "error" ? "mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-danger" : "sr-only"}>
