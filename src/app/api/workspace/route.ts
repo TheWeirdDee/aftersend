@@ -7,7 +7,8 @@ import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 
-// "demo" is the old name for "guest" and is still accepted. "create" is what every "Create an announcement" button sends.
+// "demo" starts the judge-facing sample workspace. "guest" and "create" start a normal guest workspace; "create" is what
+// every "Create an announcement" button sends.
 const body = z.object({ kind: z.enum(["workspace", "guest", "demo", "create"]) });
 
 /**
@@ -27,7 +28,7 @@ export const POST = route(
     }
     await enforceRateLimit(`workspace:${clientIp(req)}`, env().DEMO_WORKSPACES_PER_IP_PER_HOUR, 3600_000);
     if (kind === "guest" || kind === "demo") {
-      const { noticeId } = await startGuestSession();
+      const { noticeId } = await startGuestSession({ demo: kind === "demo" });
       return json({ redirect: noticeId ? `/app/notices/${noticeId}/edit` : "/app" }, { status: 201 });
     }
     const userId = await createWorkspaceUser("workspace", "Your account");
